@@ -41,7 +41,7 @@ Rapport de faisabilité : https://claude.ai/artifact/7Fqjaz64b8QCfKD2RhSCkc
 
 - Journal des erreurs et leçons : `docs/LESSONS.md`. Journal de recherche et critères de promotion figés : `docs/RESEARCH_LOG.md`.
 - Candidate `trend_sma_fast` évaluée en portefeuille fantôme (`rsi_dip` rejetée au backtest) (20 € fictifs, `state/shadow/`) à partir du 2026-11-28, sans effet sur le principal.
-- Revue hebdomadaire par Claude (tâche planifiée) : lit les rapports, met à jour les journaux, propose de nouvelles candidates. Ne touche jamais aux limites de risque.
+- Pas de revue automatique par Claude (supprimée à la demande d'Adam le 2026-11-27 : elle consommait son quota Claude Pro). Tout ce qui tourne seul est en Python sur GitHub Actions ; les journaux sont mis à jour quand Adam ouvre une session.
 
 ## Tâches restantes
 
