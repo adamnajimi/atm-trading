@@ -5,6 +5,7 @@ Les plus récentes en haut. Le système ne modifie jamais ses limites de risque 
 
 | Date | Constat | Cause | Correction | Règle retenue |
 | --- | --- | --- | --- | --- |
+| 2026-11-27 | Le workflow `final-test` s'est relancé à la fusion dans main et a échoué (en rouge) | Déclencheur « push » sur le fichier de demande, rejoué par la fusion | Le garde-fou a bien refusé de relancer le test ; workflow passé en déclenchement manuel | Un workflow à usage unique ne doit jamais avoir de déclencheur automatique |
 | 2026-11-27 | Le paper trading ne vérifiait pas les stops entre deux cycles, contrairement au backtest | Logique de stop codée seulement dans le moteur de backtest | `apply_stop` appliqué sur la dernière barre close à chaque cycle | Backtest et paper trading doivent partager le même code de décision et de sortie |
 | 2026-11-27 | Avec la volatilité actuelle (stop 3×ATR ≈ 17 %), aucun achat n'est possible : taille autorisée ≈ 3,7 € < minimum 5 € | 1 € de perte max par trade, facteur gap 1,5 et frais ⇒ stop maximal ≈ 12 % | Aucune (comportement voulu) ; candidates à stop 2×ATR évaluées en fantôme | Ne jamais relâcher une limite pour pouvoir trader ; adapter la stratégie, pas le risque |
 | 2026-11-27 | Coinbase a renvoyé 4235 barres BTC au lieu de 4236 à une heure d'intervalle | Source historique non parfaitement stable | Contrôle de validation à chaque téléchargement | Ne jamais supposer qu'une source est immuable ; conserver les données utilisées pour chaque résultat |
