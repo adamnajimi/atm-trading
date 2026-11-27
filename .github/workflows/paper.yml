@@ -1,0 +1,40 @@
+# Paper trading planifié. Ce workflow ne passe AUCUN ordre réel.
+# GitHub n'exécute les tâches planifiées que sur la branche par défaut (main) :
+# ce workflow démarre donc seulement après fusion dans main.
+name: paper-trading
+
+on:
+  schedule:
+    - cron: "17 1 * * *"   # 01:17 UTC chaque jour, hors début d'heure (moins de retards)
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: paper-trading
+  cancel-in-progress: false   # jamais deux cycles en parallèle
+
+jobs:
+  cycle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ATM_KILL_SWITCH: ${{ vars.ATM_KILL_SWITCH }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - run: python -m pytest -q
+      - name: Cycle de paper trading
+        run: python -m atm.cli paper
+      - name: Enregistrer l'état et le rapport
+        if: always()
+        run: |
+          git config user.name "atm-bot"
+          git config user.email "atm-bot@users.noreply.github.com"
+          git add state/
+          git diff --cached --quiet || git commit -m "paper: cycle $(date -u +%F)"
+          git push
