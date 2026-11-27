@@ -4,7 +4,7 @@ Dernière mise à jour : 2026-11-27.
 
 ## Étape en cours
 
-**A (recherche) terminée, B (développement) commencée.** Tout est en simulation. Aucun compte, aucune clé, aucun ordre réel.
+**A terminée, B largement faite, C commencée (entraînement + validation exécutés le 2026-11-27).** Tout est en simulation. Aucun compte, aucune clé, aucun ordre réel.
 
 Rapport de faisabilité : https://claude.ai/artifact/7Fqjaz64b8QCfKD2RhSCkc
 
@@ -32,14 +32,16 @@ Rapport de faisabilité : https://claude.ai/artifact/7Fqjaz64b8QCfKD2RhSCkc
 ## Code (dossier `atm/`)
 
 - Fait : config validée (refuse toute limite relâchée), modèles de messages, gestionnaire de risques, kill switch, validation des données, stratégie candidate `trend_sma`, orchestrateur + vote pondéré, moteur de backtest chronologique, statistiques, paper broker idempotent, broker réel bloqué, journal d'audit, rapport quotidien, CLI, workflow GitHub Actions.
-- Tests : 36 tests unitaires et d'intégration passent (exécutés le 2026-11-27, Python 3.13, données synthétiques).
-- Non testé : `atm/data/fetch.py` (le proxy du conteneur cloud bloque api.kraken.com) et le workflow GitHub (aucun dépôt encore).
+- Dépôt : https://github.com/adamnajimi/atm-trading, branche `claude/phase-b-skeleton` (main = commit initial vide). Pas de PR ouverte.
+- Tests : 39 tests passent (conteneur Python 3.13 et GitHub Actions Python 3.12, 2026-11-27).
+- Workflow `research` (push sur claude/** ou main) : télécharge les prix publics Coinbase Exchange, contrôle Kraken, lance la recherche. Workflow `paper` désactivé jusqu'à l'étape D.
+- Le conteneur cloud ne peut pas télécharger les artefacts GitHub (stockage blob bloqué) : lire les résultats dans les logs du job.
 
 ## Tâches restantes
 
-1. Adam crée un dépôt GitHub (public recommandé) et le donne au projet.
-2. Télécharger l'historique réel BTC/EUR et ETH/EUR (GitHub Actions ou Mac).
-3. Étape C : découpage train / validation / test final, walk-forward, figer les règles avant le test final.
+1. Vérifier les 2 barres à variation > 50 % signalées (BTC, ETH) et le trou ETH.
+2. Ajouter benchmarks DCA et stratégies simples, walk-forward sur entraînement + validation.
+3. Étape C (suite) : découpage train / validation / test final, walk-forward, figer les règles avant le test final.
 4. Ajouter des stratégies candidates (retour à la moyenne, cash) et le benchmark DCA.
 5. Étape D : critères de rejet, sensibilité, contribution marginale de chaque agent.
 6. Tableau de bord HTML statique généré depuis `state/`.
@@ -48,4 +50,13 @@ Rapport de faisabilité : https://claude.ai/artifact/7Fqjaz64b8QCfKD2RhSCkc
 
 ## Résultats obtenus
 
-Aucun résultat de performance réel. Les backtests synthétiques servent uniquement à tester le moteur.
+Run GitHub Actions 46059699517 (2026-11-27), données Coinbase Exchange BTC/EUR 2015-04-23→2026-11-26 (4236 barres), ETH/EUR 2017-05-23→2026-11-26 (3473 barres). trend_sma, paramètres fixés avant les données (SMA 100, momentum 50, stop 3×ATR), capital 20 €, frais Kraken taker 0,8 % + 0,1 % slippage. Test final (≥ 2024-07-01) non exécuté.
+
+| Actif | Segment | Net | Max DD | Perte max | Allers-retours | Frais | Buy & hold | DD B&H |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| BTC | entraînement 2015–2021 | +277,7 % | −20,9 % | 1,09 € | 28 | 3,82 € | +13 210 % | −83,1 % |
+| BTC | validation 2022–mi-2024 | +16,7 % | −15,3 % | 2,57 € | 19 | 2,02 € | +41,0 % | −64,1 % |
+| ETH | entraînement 2017–2021 | +122,3 % | −32,0 % | 0,81 € | 9 | 0,97 € | +1 998 % | −93,5 % |
+| ETH | validation 2022–mi-2024 | −0,9 % | −18,7 % | 2,82 € | 15 | 1,60 € | −2,9 % | −71,9 % |
+
+Lecture : perte max toujours < 7 € ; ETH ne bat pas le cash en validation (rejet ETH selon le critère D) ; BTC bat le cash mais pas le buy & hold ; les frais = 10 % du capital sur la validation BTC. Sensibilité (entraînement) : les 12 combinaisons BTC sont positives ; ETH très sensible au stop. Aucune stratégie validée.
