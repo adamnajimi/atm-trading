@@ -1,0 +1,40 @@
+# ATM — configuration principale.
+# Les limites de risque sont vérifiées au chargement : le code refuse de démarrer
+# si elles sont relâchées au-delà des plafonds fixés par Adam (voir atm/config.py).
+
+capital:
+  initial_eur: 20.0
+  hard_loss_limit_eur: 10.0        # limite contractuelle fixée par Adam, jamais modifiable par le système
+  operational_loss_limit_eur: 7.0  # arrêt des nouveaux trades ; marge de 3 € pour gaps/slippage/pannes
+
+risk:
+  max_loss_per_trade_eur: 1.0
+  max_daily_loss_eur: 2.0
+  gap_safety_factor: 1.5           # multiplie la perte estimée au stop pour couvrir les gaps
+  max_position_weight: 1.0         # fraction maximale du capital dans une position (pas de levier)
+  max_data_age_hours: 30           # au-delà, données jugées obsolètes : pas de nouvel achat
+  leverage_allowed: false          # ne peut être passé à true sans validation explicite d'Adam
+
+venue:
+  name: kraken
+  min_order_eur: 5.0
+  maker_fee: 0.0040                # Kraken Pro, palier 1 (vérifié le 2026-11-27)
+  taker_fee: 0.0080
+  slippage: 0.0010                 # hypothèse prudente, à recalibrer en paper trading
+
+execution:
+  mode: paper                      # paper | live ; live reste bloqué par LiveBroker
+  live_trading_enabled: false
+
+universe:
+  - BTC/EUR
+  - ETH/EUR
+
+strategies:
+  trend_sma:
+    enabled: true
+    params:
+      sma_window: 100
+      momentum_window: 50
+      atr_window: 14
+      stop_atr_multiple: 3.0

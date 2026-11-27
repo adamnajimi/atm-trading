@@ -1,0 +1,42 @@
+# Étape C : télécharge les prix publics (sans clé) et lance la recherche
+# sur entraînement + validation. Aucun ordre, aucun secret, aucune écriture dans le dépôt.
+name: research
+
+on:
+  push:
+    branches: ["claude/**", "main"]
+    paths: ["atm/**", "config/**", "tests/**", ".github/workflows/research.yml"]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: Tests
+        run: python -m pytest -q
+      - name: Téléchargement des prix (Coinbase Exchange, public)
+        run: python -m atm.cli fetch --exchange coinbaseexchange --out data
+      - name: Contrôle croisé Kraken (720 derniers jours)
+        continue-on-error: true
+        run: python -m atm.cli fetch --exchange kraken --since "" --out data_kraken
+      - name: Recherche (le test final reste réservé)
+        run: |
+          python -m atm.cli research --data data --out results
+          cat results/research.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: research-results
+          path: |
+            results/
+            data/
+            data_kraken/
