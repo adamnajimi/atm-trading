@@ -18,5 +18,6 @@ class Strategy(ABC):
         return 1
 
     @abstractmethod
-    def propose(self, asset: str, history: pd.DataFrame, now: datetime, in_position: bool) -> Proposal:
+    def propose(self, asset: str, history: pd.DataFrame, now: datetime, in_position: bool,
+                held_days: int | None = None) -> Proposal:
         """`history` ne contient que des barres closes à `now` (garanti par l'appelant)."""

@@ -21,6 +21,7 @@ from .data.validate import validate_ohlcv
 from .execution.paper import PaperBroker
 from .portfolio import PortfolioState
 from .risk import RiskManager
+from .strategies.dip import RsiDip
 from .strategies.trend import TrendSMA
 
 
@@ -54,46 +55,98 @@ def cmd_backtest(args) -> int:
     return 0
 
 
-def cmd_paper(args) -> int:
-    cfg = load(args.config)
-    from .data.fetch import fetch_daily_ohlcv
-    root = Path(args.root)
-    state_path, log_path = root / "state" / "portfolio.json", root / "state" / "audit.jsonl"
+STRATEGY_TYPES = {"trend_sma": TrendSMA, "rsi_dip": RsiDip}
+
+
+def apply_stop(state, asset, bar, broker, now, log_path=None):
+    """Stop vérifié sur la dernière barre close : si le plus bas l'a touché, sortie au stop
+    (ou à l'ouverture en cas de gap). Corrige l'écart backtest/paper relevé le 2026-11-27."""
+    pos = state.positions.get(asset)
+    if not pos or not pos.stop_price or float(bar["low"]) > pos.stop_price:
+        return None
+    from .models import Action, Order, RiskVerdict
+    px = min(float(bar["open"]), pos.stop_price)
+    order = Order(f"stop-{asset}-{bar.name.isoformat()}", asset, "sell", quantity=pos.quantity)
+    return broker.execute(order, RiskVerdict(True, Action.SELL, "stop"), state, px, now)
+
+
+def run_portfolio(cfg, strategies, state_path, log_path, data_by_asset, now, kill, label="principal"):
+    from .orchestrator import run_cycle
     state_path.parent.mkdir(parents=True, exist_ok=True)
     state = PortfolioState.load_or_new(state_path, cfg.risk.initial_eur)
-    now = datetime.now(timezone.utc)
-    kill = killswitch.is_active(root)
     broker, risk = PaperBroker(cfg.venue), RiskManager(cfg)
-    strategies = build_strategies(cfg)
     cycles, errors, prices = [], [], {}
-
-    from .orchestrator import run_cycle
-    for asset in cfg.paper_universe:
+    for asset, data in data_by_asset.items():
         try:
-            data = fetch_daily_ohlcv(asset, cfg.venue.name)
-            rep = validate_ohlcv(data)
-            if not rep.ok:
-                errors.append(f"{asset} : données refusées {rep.errors}")
-                continue
             prices[asset] = float(data["close"].iloc[-1])
             state.roll_day(now.date().isoformat(), prices, cfg.venue.one_way_cost)
+            apply_stop(state, asset, data.iloc[-1], broker, now)
             res = run_cycle(cfg, strategies, asset, data, state, now, kill_switch=kill)
             if res.order:
                 broker.execute(res.order, res.verdict, state, prices[asset], now)
             cycles.append(res.to_dict())
-            log_event(log_path, "cycle", res.to_dict())
+            log_event(log_path, "cycle", {"portfolio": label, **res.to_dict()})
         except Exception as e:  # une erreur sur un actif ne doit pas bloquer la suite
-            errors.append(f"{asset} : {type(e).__name__}: {e}")
-            log_event(log_path, "error", {"asset": asset, "error": str(e)})
-
+            errors.append(f"[{label}] {asset} : {type(e).__name__}: {e}")
+            log_event(log_path, "error", {"portfolio": label, "asset": asset, "error": str(e)})
     risk.check_portfolio(state, prices)
     state.save(state_path)
     eq = state.liquidation_equity(prices, cfg.venue.one_way_cost)
     summary = {"initial_eur": state.initial_eur, "equity_eur": eq, "fees_eur": state.fees_paid_eur,
                "distance_to_stop_eur": cfg.risk.operational_loss_limit_eur - max(0.0, state.initial_eur - eq),
                "positions": {k: round(v.quantity, 8) for k, v in state.positions.items()},
-               "suspended": state.suspended, "suspend_reason": state.suspend_reason}
+               "suspended": state.suspended, "suspend_reason": state.suspend_reason,
+               "n_trades": len(state.trades)}
+    return cycles, errors, summary
+
+
+def cmd_paper(args) -> int:
+    cfg = load(args.config)
+    from .data.fetch import fetch_daily_ohlcv
+    root = Path(args.root)
+    log_path = root / "state" / "audit.jsonl"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    now = datetime.now(timezone.utc)
+    kill = killswitch.is_active(root)
+
+    data_by_asset, errors = {}, []
+    for asset in cfg.paper_universe:
+        try:
+            data = fetch_daily_ohlcv(asset, cfg.venue.name)
+            rep = validate_ohlcv(data)
+            if rep.ok:
+                data_by_asset[asset] = data
+            else:
+                errors.append(f"{asset} : données refusées {rep.errors}")
+        except Exception as e:
+            errors.append(f"{asset} : {type(e).__name__}: {e}")
+            log_event(log_path, "error", {"asset": asset, "error": str(e)})
+
+    cycles, errs, summary = run_portfolio(cfg, build_strategies(cfg), root / "state" / "portfolio.json",
+                                          log_path, data_by_asset, now, kill)
+    errors += errs
     report = daily_report(cycles, summary, errors)
+
+    # Portefeuilles fantômes : candidates évaluées sur données nouvelles, sans effet sur le principal.
+    shadow_lines, shadow_errors = [], []
+    for name, spec in cfg.shadow_strategies.items():
+        if now.date().isoformat() < str(spec.get("since", "")):
+            continue
+        strat = STRATEGY_TYPES[spec["type"]](**spec.get("params", {}))
+        strat.name = name
+        c, e, sm = run_portfolio(cfg, [strat], root / "state" / "shadow" / f"{name}.json",
+                                 log_path, data_by_asset, now, kill, label=name)
+        errors += e
+        shadow_errors += e
+        acts = ", ".join(f"{x['asset']} {x['decision']['action']}" for x in c) or "—"
+        shadow_lines.append(f"| {name} | {sm['equity_eur']:.2f} € | {sm['n_trades']} | {sm['fees_eur']:.2f} € | {acts} |")
+    if shadow_lines:
+        report += ("\n## Stratégies candidates (portefeuilles fantômes, 20 € fictifs chacun)\n\n"
+                   "| Candidate | Valeur | Ordres | Frais | Décision du jour |\n| --- | --- | --- | --- | --- |\n"
+                   + "\n".join(shadow_lines) + "\n")
+    if shadow_errors:
+        report += "\n## Erreurs des candidates\n" + "".join(f"- {x}\n" for x in shadow_errors)
+
     (root / "state" / "reports").mkdir(parents=True, exist_ok=True)
     (root / "state" / "reports" / f"{now:%Y-%m-%d}.md").write_text(report, encoding="utf-8")
     print(report)

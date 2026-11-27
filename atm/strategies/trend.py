@@ -33,7 +33,8 @@ class TrendSMA(Strategy):
     def warmup(self) -> int:
         return max(self.sma_window, self.momentum_window, self.atr_window) + 1
 
-    def propose(self, asset: str, history: pd.DataFrame, now: datetime, in_position: bool) -> Proposal:
+    def propose(self, asset: str, history: pd.DataFrame, now: datetime, in_position: bool,
+                held_days: int | None = None) -> Proposal:
         asof = history.index[-1].to_pydatetime()
         base = dict(asset=asset, timestamp=now, strategy=self.name, horizon="semaines", data_asof=asof)
         if len(history) < self.warmup:
