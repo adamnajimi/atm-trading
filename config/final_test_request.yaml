@@ -1,0 +1,4 @@
+# Demande d'exécution unique du test final (voir atm/final_test.py pour la spécification figée).
+requested_at: 2026-11-27
+asset: BTC/EUR
+reason: "ETH rejeté en validation ; BTC bat le cash en entraînement et en validation"
