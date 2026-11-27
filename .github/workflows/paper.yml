@@ -1,12 +1,11 @@
 # Paper trading planifié. Ce workflow ne passe AUCUN ordre réel.
-# Il n'est pas actif tant que le projet n'est pas poussé sur un dépôt GitHub.
+# GitHub n'exécute les tâches planifiées que sur la branche par défaut (main) :
+# ce workflow démarre donc seulement après fusion dans main.
 name: paper-trading
 
-# Désactivé tant que l'étape D (validation statistique) n'est pas passée.
-# Pour l'activer : décommenter le bloc schedule (exécution à 01:17 UTC, hors début d'heure).
 on:
-  # schedule:
-  #   - cron: "17 1 * * *"
+  schedule:
+    - cron: "17 1 * * *"   # 01:17 UTC chaque jour, hors début d'heure (moins de retards)
   workflow_dispatch: {}
 
 permissions:

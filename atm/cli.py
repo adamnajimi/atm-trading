@@ -59,6 +59,7 @@ def cmd_paper(args) -> int:
     from .data.fetch import fetch_daily_ohlcv
     root = Path(args.root)
     state_path, log_path = root / "state" / "portfolio.json", root / "state" / "audit.jsonl"
+    state_path.parent.mkdir(parents=True, exist_ok=True)
     state = PortfolioState.load_or_new(state_path, cfg.risk.initial_eur)
     now = datetime.now(timezone.utc)
     kill = killswitch.is_active(root)
@@ -67,7 +68,7 @@ def cmd_paper(args) -> int:
     cycles, errors, prices = [], [], {}
 
     from .orchestrator import run_cycle
-    for asset in cfg.universe:
+    for asset in cfg.paper_universe:
         try:
             data = fetch_daily_ohlcv(asset, cfg.venue.name)
             rep = validate_ohlcv(data)

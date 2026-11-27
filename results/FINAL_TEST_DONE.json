@@ -1,0 +1,18 @@
+{
+  "done": true,
+  "run": "https://github.com/adamnajimi/atm-trading/actions/runs/46069677731",
+  "executed_at": "2026-11-27",
+  "asset": "BTC/EUR",
+  "period": ["2024-07-01", "2026-11-26"],
+  "passed": true,
+  "net_return": 0.039,
+  "final_eur": 20.78,
+  "max_drawdown": -0.185,
+  "max_loss_eur": 0.76,
+  "round_trips": 21,
+  "fees_eur": 2.37,
+  "win_rate": 0.19,
+  "buy_hold_return": -0.073,
+  "dca_return": -0.27,
+  "note": "Exécution unique. Toute nouvelle version doit être évaluée sur des données postérieures au 2026-11-26 (paper trading)."
+}

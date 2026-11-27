@@ -34,6 +34,11 @@ jobs:
         run: |
           python -m atm.cli research --data data --out results
           cat results/research.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Essai à blanc d'un cycle de paper trading (rien n'est enregistré dans le dépôt)
+        run: |
+          mkdir -p /tmp/paperdry && cp -r config /tmp/paperdry/
+          python -m atm.cli --config /tmp/paperdry/config/config.yaml --root /tmp/paperdry paper
+          cat /tmp/paperdry/state/portfolio.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:

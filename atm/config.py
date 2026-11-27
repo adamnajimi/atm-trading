@@ -58,6 +58,7 @@ class Config:
     mode: str
     live_trading_enabled: bool
     universe: tuple[str, ...]
+    paper_universe: tuple[str, ...] = ()
     strategies: dict[str, Any] = field(default_factory=dict)
 
 
@@ -111,6 +112,7 @@ def from_dict(d: dict[str, Any]) -> Config:
             mode=str(exe["mode"]),
             live_trading_enabled=bool(exe["live_trading_enabled"]),
             universe=tuple(d.get("universe", [])),
+            paper_universe=tuple(d.get("paper_universe", d.get("universe", []))),
             strategies=dict(d.get("strategies", {})),
         )
     except KeyError as e:  # pragma: no cover - message explicite

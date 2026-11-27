@@ -26,9 +26,12 @@ execution:
   mode: paper                      # paper | live ; live reste bloqué par LiveBroker
   live_trading_enabled: false
 
-universe:
+universe:            # actifs étudiés en recherche
   - BTC/EUR
   - ETH/EUR
+
+paper_universe:      # actifs tradés en paper trading (ETH rejeté en validation le 2026-11-27)
+  - BTC/EUR
 
 strategies:
   trend_sma:
