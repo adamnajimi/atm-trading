@@ -5,7 +5,7 @@ configuration qui les relâche : il ne peut donc pas « augmenter ses limites »
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -126,3 +126,27 @@ def from_dict(d: dict[str, Any]) -> Config:
 def load(path: str | Path = "config/config.yaml") -> Config:
     with open(path, encoding="utf-8") as f:
         return from_dict(yaml.safe_load(f))
+
+
+# Essais de limites (autorisés par Adam le 2026-11-27 pour les tests uniquement).
+# La perte totale (10 €) et l'arrêt opérationnel (7 €) ne sont jamais modifiables ici.
+TRIAL_BOUNDS = {
+    "max_loss_per_trade_eur": (0.25, 2.0),
+    "max_daily_loss_eur": (0.5, 3.0),
+    "gap_safety_factor": (1.25, 3.0),
+}
+
+
+def with_risk_trial(cfg: Config, overrides: dict[str, float] | None) -> Config:
+    """Copie de la config avec des limites d'essai bornées. Refuse toute autre clé."""
+    if not overrides:
+        return cfg
+    for k, v in overrides.items():
+        if k not in TRIAL_BOUNDS:
+            raise ConfigError(f"limite non modifiable en essai : {k}")
+        lo, hi = TRIAL_BOUNDS[k]
+        if not lo <= float(v) <= hi:
+            raise ConfigError(f"{k}={v} hors des bornes d'essai [{lo}, {hi}]")
+    trial = replace(cfg, risk=replace(cfg.risk, **{k: float(v) for k, v in overrides.items()}))
+    _validate(trial)
+    return trial
