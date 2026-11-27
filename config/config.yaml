@@ -41,3 +41,27 @@ strategies:
       momentum_window: 50
       atr_window: 14
       stop_atr_multiple: 3.0
+
+# Stratégies candidates évaluées en parallèle sur des données NOUVELLES (après le 2026-11-26),
+# chacune avec son propre portefeuille fictif de 20 €. Elles n'influencent jamais le portefeuille
+# principal. Critères de promotion fixés d'avance : voir docs/RESEARCH_LOG.md.
+shadow_strategies:
+  trend_sma_fast:
+    type: trend_sma
+    since: "2026-11-28"
+    params:
+      sma_window: 50
+      momentum_window: 30
+      atr_window: 14
+      stop_atr_multiple: 2.0
+  rsi_dip:
+    type: rsi_dip
+    since: "2026-11-28"
+    params:
+      trend_window: 200
+      rsi_window: 14
+      entry_rsi: 30.0
+      exit_rsi: 55.0
+      max_hold: 10
+      atr_window: 14
+      stop_atr_multiple: 2.0

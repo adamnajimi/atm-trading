@@ -71,7 +71,7 @@ def _segment(cfg: Config, strategy: TrendSMA, asset: str, data: pd.DataFrame, st
 
 def run_research(cfg: Config, datasets: dict[str, pd.DataFrame]) -> dict:
     out: dict = {"protocol": {"segments": SEGMENTS, "final_test_start": FINAL_TEST_START,
-                              "final_test_run": False}, "data": {}, "segments": [], "sensitivity": []}
+                              "final_test_run": False}, "data": {}, "segments": [], "candidates": [], "sensitivity": []}
     base_params = cfg.strategies.get("trend_sma", {}).get("params", {})
     for asset, df in datasets.items():
         rep = validate_ohlcv(df)
@@ -84,7 +84,15 @@ def run_research(cfg: Config, datasets: dict[str, pd.DataFrame]) -> dict:
             r = _segment(cfg, TrendSMA(**base_params), asset, research_df, start, end)
             if r:
                 r.segment = name
-                out["segments"].append(r.__dict__)
+                out["segments"].append({**r.__dict__, "strategy": "trend_sma"})
+            # Candidates : même protocole (entraînement + validation), jamais le test final.
+            from .strategies.dip import RsiDip
+            types = {"trend_sma": TrendSMA, "rsi_dip": RsiDip}
+            for cname, spec in cfg.shadow_strategies.items():
+                rc = _segment(cfg, types[spec["type"]](**spec.get("params", {})), asset, research_df, start, end)
+                if rc:
+                    rc.segment = name
+                    out["candidates"].append({**rc.__dict__, "strategy": cname})
         # Sensibilité aux paramètres : sur l'entraînement uniquement (Challenger)
         start, end = SEGMENTS["entrainement"]
         for sma, stop in itertools.product(SENSITIVITY_GRID["sma_window"], SENSITIVITY_GRID["stop_atr_multiple"]):
@@ -117,6 +125,13 @@ def to_markdown(res: dict) -> str:
         L.append(f"| {s['asset']} | {s['segment']} | {s['start']} → {s['end']} | {_f(st['net_return'], True)} | {_f(st['max_drawdown'], True)} | "
                  f"{_f(st['max_loss_eur'])} | {st['n_round_trips']} | {_f(st['fees_eur'])} | {_f(st['sharpe'])} | "
                  f"{_f(s['buy_hold_return'], True)} | {_f(s['buy_hold_mdd'], True)} | {_f(s.get('dca_return'), True)} | +0.0% |")
+    L += ["", "## Stratégies candidates (mêmes segments)", "",
+          "| Candidate | Actif | Segment | Rendement net | Max DD | Perte max (€) | Allers-retours | Frais (€) | Buy & hold |",
+          "| --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
+    for s in res.get("candidates", []):
+        st = s["stats"]
+        L.append(f"| {s['strategy']} | {s['asset']} | {s['segment']} | {_f(st['net_return'], True)} | {_f(st['max_drawdown'], True)} | "
+                 f"{_f(st['max_loss_eur'])} | {st['n_round_trips']} | {_f(st['fees_eur'])} | {_f(s['buy_hold_return'], True)} |")
     L += ["", "## Sensibilité (entraînement uniquement)", "",
           "| Actif | SMA | Stop (×ATR) | Rendement net | Max DD | Allers-retours | Frais (€) |", "| --- | --- | --- | --- | --- | --- | --- |"]
     for s in res["sensitivity"]:

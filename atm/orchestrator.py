@@ -82,7 +82,11 @@ def run_cycle(
     prices = {asset: last_price}
     in_pos = asset in state.positions
 
-    proposals = [s.propose(asset, history, now, in_pos) for s in strategies]
+    held_days = None
+    if in_pos and state.positions[asset].opened_at:
+        opened = datetime.fromisoformat(state.positions[asset].opened_at)
+        held_days = (now - opened).days
+    proposals = [s.propose(asset, history, now, in_pos, held_days=held_days) for s in strategies]
     decision = aggregate(proposals, weights or {s.name: 1.0 for s in strategies})
 
     # Suspension : on ne propose plus d'achat, on liquide les positions.

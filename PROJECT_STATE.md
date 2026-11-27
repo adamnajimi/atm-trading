@@ -4,7 +4,7 @@ Dernière mise à jour : 2026-11-27.
 
 ## Étape en cours
 
-**A, B, C terminées ; D passée pour BTC seul (2026-11-27). Prochaine étape : E (paper trading BTC, 60 jours min.), qui démarre à la fusion dans main.** Tout est en simulation. Aucun compte, aucune clé, aucun ordre réel.
+**A, B, C terminées ; D passée pour BTC seul (2026-11-27). E (paper trading BTC) démarrée le 2026-11-27 : PR #1 fusionnée, premier cycle manuel réussi (NO_TRADE), puis chaque jour à 01:17 UTC. Fin au plus tôt le 2027-01-26.** Tout est en simulation. Aucun compte, aucune clé, aucun ordre réel.
 
 Rapport de faisabilité : https://claude.ai/artifact/7Fqjaz64b8QCfKD2RhSCkc
 
@@ -32,14 +32,20 @@ Rapport de faisabilité : https://claude.ai/artifact/7Fqjaz64b8QCfKD2RhSCkc
 ## Code (dossier `atm/`)
 
 - Fait : config validée (refuse toute limite relâchée), modèles de messages, gestionnaire de risques, kill switch, validation des données, stratégie candidate `trend_sma`, orchestrateur + vote pondéré, moteur de backtest chronologique, statistiques, paper broker idempotent, broker réel bloqué, journal d'audit, rapport quotidien, CLI, workflow GitHub Actions.
-- Dépôt : https://github.com/adamnajimi/atm-trading, branche `claude/phase-b-skeleton` (main = commit initial vide). Pas de PR ouverte (attente de l'accord d'Adam).
+- Dépôt : https://github.com/adamnajimi/atm-trading, PR #1 fusionnée dans main le 2026-11-27. Branche en cours : `claude/autonomous-research`.
 - Tests : 43 tests passent (conteneur Python 3.13 et GitHub Actions Python 3.12, 2026-11-27).
 - Workflow `research` (push sur claude/** ou main) : télécharge les prix publics Coinbase Exchange, contrôle Kraken, lance la recherche. Workflow `paper` désactivé jusqu'à l'étape D.
 - Le conteneur cloud ne peut pas télécharger les artefacts GitHub (stockage blob bloqué) : lire les résultats dans les logs du job.
 
+## Progression autonome (demandée par Adam le 2026-11-27)
+
+- Journal des erreurs et leçons : `docs/LESSONS.md`. Journal de recherche et critères de promotion figés : `docs/RESEARCH_LOG.md`.
+- Candidates `trend_sma_fast` et `rsi_dip` évaluées en portefeuilles fantômes (20 € fictifs chacun, `state/shadow/`) à partir du 2026-11-28, sans effet sur le principal.
+- Revue hebdomadaire par Claude (tâche planifiée) : lit les rapports, met à jour les journaux, propose de nouvelles candidates. Ne touche jamais aux limites de risque.
+
 ## Tâches restantes
 
-1. Accord d'Adam pour ouvrir la PR et fusionner dans main : lance le paper trading quotidien (01:17 UTC).
+1. Suivre le paper trading (rapports dans state/reports/ sur main).
 2. Étape E : 60 jours et 20 décisions minimum ; comparer le suivi au backtest.
 3. Toute nouvelle stratégie : évaluée uniquement sur des données postérieures au 2026-11-26.
 6. Tableau de bord HTML statique généré depuis `state/`.

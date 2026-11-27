@@ -60,6 +60,7 @@ class Config:
     universe: tuple[str, ...]
     paper_universe: tuple[str, ...] = ()
     strategies: dict[str, Any] = field(default_factory=dict)
+    shadow_strategies: dict[str, Any] = field(default_factory=dict)
 
 
 def _validate(cfg: Config) -> None:
@@ -114,6 +115,7 @@ def from_dict(d: dict[str, Any]) -> Config:
             universe=tuple(d.get("universe", [])),
             paper_universe=tuple(d.get("paper_universe", d.get("universe", []))),
             strategies=dict(d.get("strategies", {})),
+            shadow_strategies=dict(d.get("shadow_strategies", {})),
         )
     except KeyError as e:  # pragma: no cover - message explicite
         raise ConfigError(f"clé de configuration manquante : {e}") from e
