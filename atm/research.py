@@ -18,7 +18,7 @@ from dataclasses import dataclass
 import pandas as pd
 
 from .backtest.engine import run_backtest
-from .backtest.metrics import buy_and_hold, max_drawdown, summarize
+from .backtest.metrics import buy_and_hold, dca, max_drawdown, summarize
 from .config import Config
 from .data.validate import validate_ohlcv
 from .strategies.trend import TrendSMA
@@ -45,6 +45,7 @@ class SegmentResult:
     stats: dict
     buy_hold_return: float
     buy_hold_mdd: float
+    dca_return: float = float("nan")
 
 
 def _segment(cfg: Config, strategy: TrendSMA, asset: str, data: pd.DataFrame, start: str, end: str) -> SegmentResult | None:
@@ -62,8 +63,10 @@ def _segment(cfg: Config, strategy: TrendSMA, asset: str, data: pd.DataFrame, st
     eq = res.equity[res.equity.index >= seg.index[0]]
     stats = summarize(eq, res.final_state, cfg)
     bh = buy_and_hold(seg, cfg)
+    d = dca(seg, cfg)
     return SegmentResult(asset, "", str(seg.index[0].date()), str(seg.index[-1].date()), len(seg),
-                         stats, float(bh.iloc[-1] / cfg.risk.initial_eur - 1), max_drawdown(bh))
+                         stats, float(bh.iloc[-1] / cfg.risk.initial_eur - 1), max_drawdown(bh),
+                         float(d.iloc[-1] / cfg.risk.initial_eur - 1))
 
 
 def run_research(cfg: Config, datasets: dict[str, pd.DataFrame]) -> dict:
@@ -107,13 +110,13 @@ def to_markdown(res: dict) -> str:
     for a, d in res["data"].items():
         L.append(f"| {a} | {d['first']} | {d['last']} | {d['rows']} | {'oui' if d['ok'] else 'NON ' + str(d['errors'])} | {'; '.join(d['warnings']) or '—'} |")
     L += ["", "## trend_sma (paramètres de config) vs benchmarks, capital 20 €", "",
-          "| Actif | Segment | Période | Rendement net | Max DD | Perte max (€) | Allers-retours | Frais (€) | Sharpe | Buy & hold | DD buy & hold | Cash |",
-          "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
+          "| Actif | Segment | Période | Rendement net | Max DD | Perte max (€) | Allers-retours | Frais (€) | Sharpe | Buy & hold | DD buy & hold | Achat régulier (4×5 €) | Cash |",
+          "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
     for s in res["segments"]:
         st = s["stats"]
         L.append(f"| {s['asset']} | {s['segment']} | {s['start']} → {s['end']} | {_f(st['net_return'], True)} | {_f(st['max_drawdown'], True)} | "
                  f"{_f(st['max_loss_eur'])} | {st['n_round_trips']} | {_f(st['fees_eur'])} | {_f(st['sharpe'])} | "
-                 f"{_f(s['buy_hold_return'], True)} | {_f(s['buy_hold_mdd'], True)} | +0.0% |")
+                 f"{_f(s['buy_hold_return'], True)} | {_f(s['buy_hold_mdd'], True)} | {_f(s.get('dca_return'), True)} | +0.0% |")
     L += ["", "## Sensibilité (entraînement uniquement)", "",
           "| Actif | SMA | Stop (×ATR) | Rendement net | Max DD | Allers-retours | Frais (€) |", "| --- | --- | --- | --- | --- | --- | --- |"]
     for s in res["sensitivity"]:

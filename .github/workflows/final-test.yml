@@ -1,0 +1,31 @@
+# Test final hors échantillon : exécution UNIQUE, déclenchée par la création de
+# config/final_test_request.yaml. Refuse de tourner si results/FINAL_TEST_DONE.json existe.
+name: final-test
+
+on:
+  push:
+    branches: ["claude/**", "main"]
+    paths: ["config/final_test_request.yaml"]
+
+permissions:
+  contents: read
+
+jobs:
+  final-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - run: python -m pytest -q
+      - run: python -m atm.cli fetch --exchange coinbaseexchange --out data
+      - name: Test final (spécification figée dans atm/final_test.py)
+        run: python -m atm.cli final-test --data data --out results
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: final-test-results
+          path: results/

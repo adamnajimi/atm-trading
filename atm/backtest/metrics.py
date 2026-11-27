@@ -67,3 +67,19 @@ def buy_and_hold(data: pd.DataFrame, cfg: Config) -> pd.Series:
     c = cfg.venue.one_way_cost
     qty = cfg.risk.initial_eur * (1 - c) / float(data["open"].iloc[0])
     return data["close"] * qty * (1 - c)
+
+
+def dca(data: pd.DataFrame, cfg: Config, n_buys: int | None = None) -> pd.Series:
+    """Benchmark achat régulier : le capital est investi en parts égales, à intervalles
+    réguliers, à l'ouverture. Avec 20 € et 5 € minimum par ordre, 4 achats au plus."""
+    initial, c = cfg.risk.initial_eur, cfg.venue.one_way_cost
+    n = n_buys or int(initial // cfg.venue.min_order_eur)
+    n = max(1, min(n, len(data)))
+    idx = [int(round(k * (len(data) - 1) / n)) for k in range(n)]
+    part = initial / n
+    qty = pd.Series(0.0, index=data.index)
+    cash = pd.Series(initial, index=data.index)
+    for k in idx:
+        qty.iloc[k:] += part * (1 - c) / float(data["open"].iloc[k])
+        cash.iloc[k:] -= part
+    return cash + qty * data["close"] * (1 - c)

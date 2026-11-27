@@ -127,6 +127,39 @@ def cmd_research(args) -> int:
     return 0
 
 
+def _csv(folder, asset):
+    return Path(folder) / (asset.replace("/", "_").lower() + ".csv")
+
+
+def cmd_check(args) -> int:
+    from .checks import describe
+    from .data.fetch import load_csv
+    cfg = load(args.config)
+    data = {a: load_csv(_csv(args.data, a)) for a in cfg.universe}
+    second = {a: load_csv(_csv(args.second, a)) for a in cfg.universe if args.second and _csv(args.second, a).exists()}
+    md = "# Anomalies de données\n\n" + "\n".join(
+        describe(a, df, {o: d for o, d in data.items() if o != a}, second.get(a)) for a, df in data.items())
+    out = Path(args.out)
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "data_checks.md").write_text(md, encoding="utf-8")
+    print(md)
+    return 0
+
+
+def cmd_final_test(args) -> int:
+    from .data.fetch import load_csv
+    from .final_test import FROZEN, dump, run_final_test, to_markdown
+    cfg = load(args.config)
+    r = run_final_test(cfg, load_csv(_csv(args.data, FROZEN["asset"])), root=args.root)
+    out = Path(args.out)
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "final_test.json").write_text(dump(r), encoding="utf-8")
+    md = to_markdown(r)
+    (out / "final_test.md").write_text(md, encoding="utf-8")
+    print(md)
+    return 0
+
+
 def cmd_status(args) -> int:
     p = Path(args.root) / "state" / "portfolio.json"
     print(p.read_text(encoding="utf-8") if p.exists() else "aucun état : le paper trading n'a pas encore tourné")
@@ -150,10 +183,17 @@ def main(argv=None) -> int:
     r = sub.add_parser("research")
     r.add_argument("--data", default="data")
     r.add_argument("--out", default="results")
+    c = sub.add_parser("check")
+    c.add_argument("--data", default="data")
+    c.add_argument("--second", default="data_kraken")
+    c.add_argument("--out", default="results")
+    ft = sub.add_parser("final-test")
+    ft.add_argument("--data", default="data")
+    ft.add_argument("--out", default="results")
     sub.add_parser("paper")
     sub.add_parser("status")
     args = ap.parse_args(argv)
-    return {"backtest": cmd_backtest, "fetch": cmd_fetch, "research": cmd_research,
+    return {"backtest": cmd_backtest, "fetch": cmd_fetch, "research": cmd_research, "check": cmd_check, "final-test": cmd_final_test,
             "paper": cmd_paper, "status": cmd_status}[args.cmd](args)
 
 

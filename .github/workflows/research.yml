@@ -5,7 +5,7 @@ name: research
 on:
   push:
     branches: ["claude/**", "main"]
-    paths: ["atm/**", "config/**", "tests/**", ".github/workflows/research.yml"]
+    paths: ["atm/**", "config/config.yaml", "tests/**", ".github/workflows/research.yml"]
   workflow_dispatch: {}
 
 permissions:
@@ -28,6 +28,8 @@ jobs:
       - name: Contrôle croisé Kraken (720 derniers jours)
         continue-on-error: true
         run: python -m atm.cli fetch --exchange kraken --since "" --out data_kraken
+      - name: Inspection des anomalies de données
+        run: python -m atm.cli check --data data --second data_kraken --out results
       - name: Recherche (le test final reste réservé)
         run: |
           python -m atm.cli research --data data --out results
