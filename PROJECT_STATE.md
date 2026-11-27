@@ -40,7 +40,7 @@ Rapport de faisabilité : https://claude.ai/artifact/7Fqjaz64b8QCfKD2RhSCkc
 ## Progression autonome (demandée par Adam le 2026-11-27)
 
 - Journal des erreurs et leçons : `docs/LESSONS.md`. Journal de recherche et critères de promotion figés : `docs/RESEARCH_LOG.md`.
-- Candidate `trend_sma_fast` évaluée en portefeuille fantôme (`rsi_dip` rejetée au backtest) (20 € fictifs, `state/shadow/`) à partir du 2026-11-28, sans effet sur le principal.
+- Fantômes (20 € fictifs chacun, `state/shadow/`) à partir du 2026-11-28 : `trend_sma_fast` et `trend_sma_risk15` (essai de limite 1,5 €/trade autorisé par Adam pour les tests). `rsi_dip` rejetée au backtest. Limites du portefeuille principal inchangées.
 - Pas de revue automatique par Claude (supprimée à la demande d'Adam le 2026-11-27 : elle consommait son quota Claude Pro). Tout ce qui tourne seul est en Python sur GitHub Actions ; les journaux sont mis à jour quand Adam ouvre une session.
 
 ## Tâches restantes

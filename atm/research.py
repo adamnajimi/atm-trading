@@ -29,6 +29,15 @@ SEGMENTS = {
 }
 FINAL_TEST_START = "2024-07-01"  # ne jamais utiliser dans ce module
 
+RISK_TRIALS = [  # jeux de limites d'essai (tests uniquement), voir config.TRIAL_BOUNDS
+    {"max_loss_per_trade_eur": 0.5},
+    {},  # limites actuelles
+    {"max_loss_per_trade_eur": 1.5},
+    {"max_loss_per_trade_eur": 2.0},
+    {"gap_safety_factor": 1.25},
+    {"max_loss_per_trade_eur": 1.5, "gap_safety_factor": 1.25},
+]
+
 SENSITIVITY_GRID = {
     "sma_window": [50, 100, 150, 200],
     "stop_atr_multiple": [2.0, 3.0, 4.0],
@@ -71,7 +80,7 @@ def _segment(cfg: Config, strategy: TrendSMA, asset: str, data: pd.DataFrame, st
 
 def run_research(cfg: Config, datasets: dict[str, pd.DataFrame]) -> dict:
     out: dict = {"protocol": {"segments": SEGMENTS, "final_test_start": FINAL_TEST_START,
-                              "final_test_run": False}, "data": {}, "segments": [], "candidates": [], "sensitivity": []}
+                              "final_test_run": False}, "data": {}, "segments": [], "candidates": [], "sensitivity": [], "risk_trials": []}
     base_params = cfg.strategies.get("trend_sma", {}).get("params", {})
     for asset, df in datasets.items():
         rep = validate_ohlcv(df)
@@ -93,6 +102,23 @@ def run_research(cfg: Config, datasets: dict[str, pd.DataFrame]) -> dict:
                 if rc:
                     rc.segment = name
                     out["candidates"].append({**rc.__dict__, "strategy": cname})
+        # Essais de limites de risque : BTC seulement (seul actif en paper), entraînement + validation
+        if asset == "BTC/EUR":
+            from .config import with_risk_trial
+            from .strategies.trend import TrendSMA as _T
+            strats = {"trend_sma": base_params}
+            strats.update({n: sp.get("params", {}) for n, sp in cfg.shadow_strategies.items() if sp.get("type") == "trend_sma"})
+            for trial in RISK_TRIALS:
+                tcfg = with_risk_trial(cfg, trial)
+                label = ", ".join(f"{k}={v}" for k, v in trial.items()) or "actuelles"
+                for sname, sparams in strats.items():
+                    for segname, (start, end) in SEGMENTS.items():
+                        r = _segment(tcfg, _T(**sparams), asset, research_df, start, end)
+                        if r:
+                            out["risk_trials"].append({"limits": label, "strategy": sname, "segment": segname,
+                                                       "net_return": r.stats["net_return"], "max_loss_eur": r.stats["max_loss_eur"],
+                                                       "max_drawdown": r.stats["max_drawdown"], "n_round_trips": r.stats["n_round_trips"],
+                                                       "fees_eur": r.stats["fees_eur"], "suspended": r.stats["suspended"]})
         # Sensibilité aux paramètres : sur l'entraînement uniquement (Challenger)
         start, end = SEGMENTS["entrainement"]
         for sma, stop in itertools.product(SENSITIVITY_GRID["sma_window"], SENSITIVITY_GRID["stop_atr_multiple"]):
@@ -132,6 +158,12 @@ def to_markdown(res: dict) -> str:
         st = s["stats"]
         L.append(f"| {s['strategy']} | {s['asset']} | {s['segment']} | {_f(st['net_return'], True)} | {_f(st['max_drawdown'], True)} | "
                  f"{_f(st['max_loss_eur'])} | {st['n_round_trips']} | {_f(st['fees_eur'])} | {_f(s['buy_hold_return'], True)} |")
+    L += ["", "## Essais de limites de risque (BTC, tests uniquement ; arrêt 7 € et perte totale 10 € inchangés)", "",
+          "| Limites | Stratégie | Segment | Rendement net | Perte max (€) | Max DD | Allers-retours | Frais (€) | Suspendu |",
+          "| --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
+    for t in res.get("risk_trials", []):
+        L.append(f"| {t['limits']} | {t['strategy']} | {t['segment']} | {_f(t['net_return'], True)} | {_f(t['max_loss_eur'])} | "
+                 f"{_f(t['max_drawdown'], True)} | {t['n_round_trips']} | {_f(t['fees_eur'])} | {'oui' if t['suspended'] else 'non'} |")
     L += ["", "## Sensibilité (entraînement uniquement)", "",
           "| Actif | SMA | Stop (×ATR) | Rendement net | Max DD | Allers-retours | Frais (€) |", "| --- | --- | --- | --- | --- | --- | --- |"]
     for s in res["sensitivity"]:

@@ -134,7 +134,9 @@ def cmd_paper(args) -> int:
             continue
         strat = STRATEGY_TYPES[spec["type"]](**spec.get("params", {}))
         strat.name = name
-        c, e, sm = run_portfolio(cfg, [strat], root / "state" / "shadow" / f"{name}.json",
+        from .config import with_risk_trial
+        scfg = with_risk_trial(cfg, spec.get("risk_trial"))
+        c, e, sm = run_portfolio(scfg, [strat], root / "state" / "shadow" / f"{name}.json",
                                  log_path, data_by_asset, now, kill, label=name)
         errors += e
         shadow_errors += e

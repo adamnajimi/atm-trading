@@ -54,4 +54,14 @@ shadow_strategies:
       momentum_window: 30
       atr_window: 14
       stop_atr_multiple: 2.0
+  trend_sma_risk15:            # essai de limite : 1,5 € de perte max par trade (au lieu de 1 €)
+    type: trend_sma
+    since: "2026-11-28"
+    risk_trial:
+      max_loss_per_trade_eur: 1.5
+    params:
+      sma_window: 100
+      momentum_window: 50
+      atr_window: 14
+      stop_atr_multiple: 3.0
 # rsi_dip rejetée le 2026-11-27 avant le fantôme : sous le cash en entraînement et en validation (docs/RESEARCH_LOG.md).

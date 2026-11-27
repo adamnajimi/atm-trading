@@ -25,6 +25,7 @@ def test_paper_cycle_runs_main_and_shadows(tmp_path, monkeypatch):
     assert rc == 0
     assert (root / "state" / "portfolio.json").exists()
     assert (root / "state" / "shadow" / "trend_sma_fast.json").exists()
+    assert (root / "state" / "shadow" / "trend_sma_risk15.json").exists()
     assert not (root / "state" / "shadow" / "rsi_dip.json").exists()  # rejetée au backtest
     report = next((root / "state" / "reports").glob("*.md")).read_text(encoding="utf-8")
     assert "portefeuilles fantômes" in report
