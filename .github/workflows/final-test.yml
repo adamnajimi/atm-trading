@@ -1,11 +1,10 @@
-# Test final hors échantillon : exécution UNIQUE, déclenchée par la création de
-# config/final_test_request.yaml. Refuse de tourner si results/FINAL_TEST_DONE.json existe.
+# Test final hors échantillon : exécution UNIQUE, déjà faite le 2026-11-27
+# (results/FINAL_TEST_DONE.json). Déclenchement manuel seulement ; le code refuse
+# de toute façon de relancer le test tant que le marqueur existe.
 name: final-test
 
 on:
-  push:
-    branches: ["claude/**", "main"]
-    paths: ["config/final_test_request.yaml"]
+  workflow_dispatch: {}
 
 permissions:
   contents: read
