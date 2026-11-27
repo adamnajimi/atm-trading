@@ -24,11 +24,15 @@ Sinon elle est rejetée et notée ci-dessous avec la raison.
 | Nom | Hypothèse | Entrée en fantôme | Statut |
 | --- | --- | --- | --- |
 | trend_sma (principal) | Persistance des tendances de plusieurs semaines | 2026-11-27 (portefeuille principal) | En paper trading |
-| trend_sma_fast | Même hypothèse, SMA 50 / momentum 30, stop 2×ATR (assez serré pour respecter le minimum de 5 €) | 2026-11-28 | En évaluation |
-| rsi_dip | Repli court (RSI14 < 30) dans une tendance longue (clôture > SMA200), sortie RSI > 55 ou 10 jours | 2026-11-28 | En évaluation |
+| trend_sma_fast | Même hypothèse, SMA 50 / momentum 30, stop 2×ATR (assez serré pour respecter le minimum de 5 €). Backtest BTC : entraînement +472 % (55 allers-retours, 9,04 € de frais), validation +45,8 % (perte max 3,96 €) contre +16,7 % pour le principal | 2026-11-28 | En évaluation |
 
 ## Rejetées
 
 | Nom | Date | Raison |
 | --- | --- | --- |
 | trend_sma sur ETH/EUR | 2026-11-27 | Rendement net −0,9 % en validation, sous le cash |
+| rsi_dip (BTC) | 2026-11-27 | Backtest : −1,1 % en entraînement, −0,4 % en validation, seulement 6 allers-retours au total ; n'entre pas en fantôme |
+
+## Mise en garde
+
+Les paramètres de trend_sma_fast ont été choisis après avoir vu la grille de sensibilité d'entraînement (SMA 50 et stop 2×ATR y étaient parmi les meilleurs). Son backtest est donc optimiste par construction : seule l'évaluation fantôme sur données nouvelles compte.
