@@ -50,6 +50,8 @@ Rapport de faisabilité : https://claude.ai/artifact/7Fqjaz64b8QCfKD2RhSCkc
 - Adam propose un budget de 50 €. Scénarios de capital (20 € actuel, 50 € avec limites actuelles, intermédiaires, proportionnelles) en backtest seulement ; aucune limite adoptée, plafond de config toujours 20 €.
 - Posts X autorisés comme source d'idées, toujours vérifiées (règles dans docs/RESEARCH_LOG.md).
 - Plus de points automatiques (9h/18h) : Adam demande quand il veut.
+- Directives PROMETHEUS (Adam, 2026-11-28) intégrées dans l'existant : registres dans `docs/` (index : `docs/IMPROVEMENT_BACKLOG.md`), test anti-lookahead, Sharpe déflaté (45 essais : aucun avantage prouvé, DSR 21,7 % pour trend_sma), journal d'événements réels `state/events.jsonl`, tableau de bord `docs/dashboard/index.html` régénéré à chaque cycle.
+- Adam autorise Claude à fusionner seul les PR de simulation/recherche/doc quand les tests passent.
 
 ## Tâches restantes
 

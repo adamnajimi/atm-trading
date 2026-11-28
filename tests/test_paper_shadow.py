@@ -34,6 +34,15 @@ def test_paper_cycle_runs_main_and_shadows(tmp_path, monkeypatch):
     main(["--config", str(root / "config" / "config.yaml"), "--root", str(root), "paper"])
     after = PortfolioState.from_json((root / "state" / "portfolio.json").read_text()).trades
     assert len(after) == len(before)
+    # observabilité : chaque étape réelle laisse un événement structuré
+    from atm.events import read_events
+    evs = read_events(root / "state" / "events.jsonl")
+    types = {e["type"] for e in evs}
+    assert {"cycle_debut", "telechargement", "decision", "verdict", "etat", "rapport"} <= types
+    assert all({"id", "ts", "agent", "type", "task", "status", "duration_s", "sources", "errors"} <= set(e) for e in evs)
+    from atm.dashboard import write
+    page = write(root).read_text(encoding="utf-8")
+    assert "Command Center" in page and "trend_sma_fast" in page
     # un créneau de secours le même jour ne refait rien (pas de doublon dans le journal)
     audit = (root / "state" / "audit.jsonl").read_text(encoding="utf-8")
     assert main(["--config", str(root / "config" / "config.yaml"), "--root", str(root), "paper"]) == 0
