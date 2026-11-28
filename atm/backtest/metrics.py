@@ -59,7 +59,38 @@ def summarize(equity: pd.Series, state: PortfolioState, cfg: Config, periods_per
         "expectancy_eur": float(np.mean(pnls)) if pnls else float("nan"),
         "fees_eur": round(state.fees_paid_eur, 4),
         "suspended": state.suspended,
+        # pour le Sharpe déflaté (non annualisés)
+        "sr_period": float(rets.mean() / sd) if sd > 0 else float("nan"),
+        "skew": float(rets.skew()) if len(rets) > 2 else float("nan"),
+        "kurtosis": float(rets.kurt() + 3) if len(rets) > 3 else float("nan"),
+        "n_obs": int(len(rets)),
     }
+
+
+EULER_GAMMA = 0.5772156649015329
+
+
+def expected_max_sharpe(n_trials: int, sr_variance: float) -> float:
+    """Sharpe maximal attendu par hasard parmi n essais (Bailey & López de Prado, 2014)."""
+    from statistics import NormalDist
+    if n_trials < 2 or sr_variance <= 0:
+        return 0.0
+    z = NormalDist().inv_cdf
+    return math.sqrt(sr_variance) * ((1 - EULER_GAMMA) * z(1 - 1 / n_trials)
+                                     + EULER_GAMMA * z(1 - 1 / (n_trials * math.e)))
+
+
+def deflated_sharpe(sr: float, n_obs: int, skew: float, kurtosis: float, n_trials: int, sr_variance: float) -> float:
+    """Probabilité que le vrai Sharpe (par période) dépasse celui qu'on obtiendrait par hasard
+    en gardant le meilleur de n essais. Sharpe déflaté de Bailey & López de Prado (2014)."""
+    from statistics import NormalDist
+    if any(math.isnan(x) for x in (sr, skew, kurtosis)) or n_obs < 3:
+        return float("nan")
+    sr0 = expected_max_sharpe(n_trials, sr_variance)
+    denom = 1 - skew * sr + (kurtosis - 1) / 4 * sr ** 2
+    if denom <= 0:
+        return float("nan")
+    return NormalDist().cdf((sr - sr0) * math.sqrt(n_obs - 1) / math.sqrt(denom))
 
 
 def buy_and_hold(data: pd.DataFrame, cfg: Config) -> pd.Series:

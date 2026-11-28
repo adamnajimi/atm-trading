@@ -100,6 +100,14 @@ def _segment(cfg: Config, strategy: TrendSMA, asset: str, data: pd.DataFrame, st
 
 
 def run_research(cfg: Config, datasets: dict[str, pd.DataFrame]) -> dict:
+    trials: list[dict] = []  # tous les essais BTC sur la validation, pour le Sharpe déflaté
+
+    def _seg(c, strat, asset, data, start, end):
+        r = _segment(c, strat, asset, data, start, end)
+        if r and asset == "BTC/EUR" and (start, end) == SEGMENTS["validation"]:
+            trials.append(r.stats)
+        return r
+
     out: dict = {"protocol": {"segments": SEGMENTS, "final_test_start": FINAL_TEST_START,
                               "final_test_run": False}, "data": {}, "segments": [], "candidates": [], "sensitivity": [], "risk_trials": [], "cost_scenarios": [], "capital_scenarios": []}
     base_params = cfg.strategies.get("trend_sma", {}).get("params", {})
@@ -111,7 +119,7 @@ def run_research(cfg: Config, datasets: dict[str, pd.DataFrame]) -> dict:
             continue
         research_df = df[df.index < pd.Timestamp(FINAL_TEST_START, tz="UTC")]
         for name, (start, end) in SEGMENTS.items():
-            r = _segment(cfg, TrendSMA(**base_params), asset, research_df, start, end)
+            r = _seg(cfg, TrendSMA(**base_params), asset, research_df, start, end)
             if r:
                 r.segment = name
                 out["segments"].append({**r.__dict__, "strategy": "trend_sma"})
@@ -119,7 +127,7 @@ def run_research(cfg: Config, datasets: dict[str, pd.DataFrame]) -> dict:
             from .strategies.dip import RsiDip
             types = {"trend_sma": TrendSMA, "rsi_dip": RsiDip}
             for cname, spec in cfg.shadow_strategies.items():
-                rc = _segment(cfg, types[spec["type"]](**spec.get("params", {})), asset, research_df, start, end)
+                rc = _seg(cfg, types[spec["type"]](**spec.get("params", {})), asset, research_df, start, end)
                 if rc:
                     rc.segment = name
                     out["candidates"].append({**rc.__dict__, "strategy": cname})
@@ -134,7 +142,7 @@ def run_research(cfg: Config, datasets: dict[str, pd.DataFrame]) -> dict:
                 label = ", ".join(f"{k}={v}" for k, v in trial.items()) or "actuelles"
                 for sname, sparams in strats.items():
                     for segname, (start, end) in SEGMENTS.items():
-                        r = _segment(tcfg, _T(**sparams), asset, research_df, start, end)
+                        r = _seg(tcfg, _T(**sparams), asset, research_df, start, end)
                         if r:
                             out["risk_trials"].append({"limits": label, "strategy": sname, "segment": segname,
                                                        "net_return": r.stats["net_return"], "max_loss_eur": r.stats["max_loss_eur"],
@@ -151,7 +159,7 @@ def run_research(cfg: Config, datasets: dict[str, pd.DataFrame]) -> dict:
                 ccfg = _replace(cfg, venue=_replace(cfg.venue, **venue_over))
                 for sname, sparams in strats.items():
                     for segname, (start, end) in SEGMENTS.items():
-                        r = _segment(ccfg, _T(**sparams), asset, research_df, start, end)
+                        r = _seg(ccfg, _T(**sparams), asset, research_df, start, end)
                         if r:
                             out["cost_scenarios"].append({"scenario": scen, "one_way_cost": ccfg.venue.one_way_cost,
                                                           "strategy": sname, "segment": segname,
@@ -164,7 +172,7 @@ def run_research(cfg: Config, datasets: dict[str, pd.DataFrame]) -> dict:
                                     venue=_replace(cfg.venue, **COST_SCENARIOS[costname]))  # hors _validate : backtest seulement
                     for sname, sparams in strats.items():
                         for segname, (start, end) in SEGMENTS.items():
-                            r = _segment(kcfg, _T(**sparams), asset, research_df, start, end)
+                            r = _seg(kcfg, _T(**sparams), asset, research_df, start, end)
                             if r:
                                 out["capital_scenarios"].append({
                                     "capital": capname, "costs": costname, "strategy": sname, "segment": segname,
@@ -177,11 +185,25 @@ def run_research(cfg: Config, datasets: dict[str, pd.DataFrame]) -> dict:
         start, end = SEGMENTS["entrainement"]
         for sma, stop in itertools.product(SENSITIVITY_GRID["sma_window"], SENSITIVITY_GRID["stop_atr_multiple"]):
             params = {**base_params, "sma_window": sma, "stop_atr_multiple": stop}
-            r = _segment(cfg, TrendSMA(**params), asset, research_df, start, end)
+            r = _seg(cfg, TrendSMA(**params), asset, research_df, start, end)
             if r:
                 out["sensitivity"].append({"asset": asset, "sma_window": sma, "stop_atr_multiple": stop,
                                            "net_return": r.stats["net_return"], "max_drawdown": r.stats["max_drawdown"],
                                            "n_round_trips": r.stats["n_round_trips"], "fees_eur": r.stats["fees_eur"]})
+    # Sharpe déflaté : corrige le fait d'avoir choisi parmi beaucoup d'essais sur la même validation
+    if trials:
+        import numpy as _np
+        from .backtest.metrics import deflated_sharpe, expected_max_sharpe
+        srs = [t["sr_period"] for t in trials if not math.isnan(t["sr_period"])]
+        var = float(_np.var(srs, ddof=1)) if len(srs) > 1 else 0.0
+        base = trials[0]  # trend_sma, config actuelle (premier essai calculé)
+        best = max((t for t in trials if not math.isnan(t["sr_period"])), key=lambda t: t["sr_period"], default=base)
+        def _d(t):
+            return deflated_sharpe(t["sr_period"], t["n_obs"], t["skew"], t["kurtosis"], len(srs), var)
+        out["deflated_sharpe"] = {"n_trials": len(srs), "sr_variance": var,
+                                  "sr0_period": expected_max_sharpe(len(srs), var),
+                                  "baseline_sr_period": base["sr_period"], "baseline_dsr": _d(base),
+                                  "best_sr_period": best["sr_period"], "best_dsr": _d(best)}
     return out
 
 
@@ -231,6 +253,14 @@ def to_markdown(res: dict) -> str:
         L.append(f"| {t['capital']} | {t['costs']} | {t['strategy']} | {t['segment']} | {_f(t['net_return'], True)} | "
                  f"{_f(t['final_eur'] - t['initial_eur'])} | {_f(t['max_loss_eur'])} | {_f(t['stop_eur'])} | {t['n_round_trips']} | "
                  f"{_f(t['fees_eur'])} | {'oui' if t['suspended'] else 'non'} |")
+    d = res.get("deflated_sharpe")
+    if d:
+        L += ["", "## Sharpe déflaté (BTC, validation ; Bailey & López de Prado 2014)", "",
+              f"Essais comparés sur la validation : {d['n_trials']}. Sharpe journalier attendu par hasard pour le meilleur : {d['sr0_period']:.4f}.", "",
+              "| Essai | Sharpe journalier | Sharpe annualisé | Probabilité que l'avantage soit réel (DSR) |", "| --- | --- | --- | --- |",
+              f"| trend_sma (config actuelle) | {d['baseline_sr_period']:.4f} | {d['baseline_sr_period'] * math.sqrt(365):.2f} | {d['baseline_dsr']:.1%} |",
+              f"| meilleur essai | {d['best_sr_period']:.4f} | {d['best_sr_period'] * math.sqrt(365):.2f} | {d['best_dsr']:.1%} |",
+              "", "Lecture : sous 95 %, l'avantage observé peut s'expliquer par le nombre d'essais."]
     L += ["", "## Sensibilité (entraînement uniquement)", "",
           "| Actif | SMA | Stop (×ATR) | Rendement net | Max DD | Allers-retours | Frais (€) |", "| --- | --- | --- | --- | --- | --- | --- |"]
     for s in res["sensitivity"]:
