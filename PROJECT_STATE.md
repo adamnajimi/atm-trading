@@ -51,6 +51,8 @@ Rapport de faisabilité : https://claude.ai/artifact/7Fqjaz64b8QCfKD2RhSCkc
 - Posts X autorisés comme source d'idées, toujours vérifiées (règles dans docs/RESEARCH_LOG.md).
 - Plus de points automatiques (9h/18h) : Adam demande quand il veut.
 - Directives PROMETHEUS (Adam, 2026-11-28) intégrées dans l'existant : registres dans `docs/` (index : `docs/IMPROVEMENT_BACKLOG.md`), test anti-lookahead, Sharpe déflaté (45 essais : aucun avantage prouvé, DSR 21,7 % pour trend_sma), journal d'événements réels `state/events.jsonl`, tableau de bord `docs/dashboard/index.html` régénéré à chaque cycle.
+- Fantômes ajoutés le 2026-11-28 (choix de Claude, autorisé par Adam) : `trend_sma_bitvavo` (frais Bitvavo) et `trend_sma_cap50` (50 € fictifs, limites intermédiaires). Le portefeuille principal (20 €, Kraken, limites 7/10 €) ne change pas ; plafond réel inchangé.
+- Adam : pour la simulation, la recherche, les outils et les portefeuilles fictifs, Claude décide seul. Argent réel, dépôts, dépenses, capital réel, limites réelles, levier, identifiants : accord explicite d'Adam.
 - Adam autorise Claude à fusionner seul les PR de simulation/recherche/doc quand les tests passent.
 
 ## Tâches restantes

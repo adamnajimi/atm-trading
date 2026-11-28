@@ -25,6 +25,8 @@ Sinon elle est rejetée et notée ci-dessous avec la raison.
 | --- | --- | --- | --- |
 | trend_sma (principal) | Persistance des tendances de plusieurs semaines | 2026-11-27 (portefeuille principal) | En paper trading |
 | trend_sma_fast | Même hypothèse, SMA 50 / momentum 30, stop 2×ATR (assez serré pour respecter le minimum de 5 €). Backtest BTC : entraînement +472 % (55 allers-retours, 9,04 € de frais), validation +45,8 % (perte max 3,96 €) contre +16,7 % pour le principal | 2026-11-28 | En évaluation |
+| trend_sma_bitvavo | Même stratégie que le principal, frais Bitvavo (0,15 % / 0,25 %, glissement 0,1 % inchangé). Backtest validation +28,5 % contre +16,7 % | 2026-11-28 | En évaluation |
+| trend_sma_cap50 | 50 € fictifs, limites intermédiaires (1,5 €/trade, 3 €/jour, arrêt 12 €, perte max 15 €), frais Bitvavo. Backtest validation +8,48 €, perte max 2,63 € | 2026-11-28 | En évaluation |
 | trend_sma_risk15 | Même stratégie que le principal, perte max par trade 1,5 € au lieu de 1 € (essai autorisé par Adam, tests uniquement). Backtest BTC : entraînement +415,6 % (perte max 1,87 €), validation +26,1 % (perte max 3,57 €) contre +16,7 %. Avec la volatilité actuelle, la taille autorisée (~5,5 €) dépasse le minimum de 5 € | 2026-11-28 | En évaluation |
 
 ## Essais de limites de risque (2026-11-27)

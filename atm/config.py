@@ -150,3 +150,45 @@ def with_risk_trial(cfg: Config, overrides: dict[str, float] | None) -> Config:
     trial = replace(cfg, risk=replace(cfg.risk, **{k: float(v) for k, v in overrides.items()}))
     _validate(trial)
     return trial
+
+
+# Portefeuilles fantômes (fictifs, jamais réels) : réglages autorisés par Adam le 2026-11-28
+# (« fais ce qui te semble le mieux ») pour comparer une autre plateforme et un capital de 50 €.
+# Ne s'appliquent JAMAIS au portefeuille principal ni à l'argent réel.
+SHADOW_BOUNDS = {
+    "initial_eur": (5.0, 50.0),
+    "hard_loss_limit_eur": (1.0, 15.0),
+    "operational_loss_limit_eur": (1.0, 12.0),
+    "max_loss_per_trade_eur": (0.25, 1.5),
+    "max_daily_loss_eur": (0.5, 3.0),
+}
+SHADOW_VENUES = {  # tarifs officiels relevés le 2026-11-28 (palier le plus bas, spot EUR)
+    "kraken": {"name": "kraken", "min_order_eur": 5.0, "maker_fee": 0.0040, "taker_fee": 0.0080},
+    "bitvavo": {"name": "bitvavo", "min_order_eur": 5.0, "maker_fee": 0.0015, "taker_fee": 0.0025},
+}
+
+
+def with_shadow_overrides(cfg: Config, spec: dict) -> Config:
+    """Config d'un portefeuille fantôme : essai de limites (bornes d'essai), puis capital/plateforme
+    fantômes bornés. Le glissement supposé n'est jamais réduit."""
+    out = with_risk_trial(cfg, spec.get("risk_trial"))
+    cap = spec.get("shadow_capital") or {}
+    for k, v in cap.items():
+        if k not in SHADOW_BOUNDS:
+            raise ConfigError(f"réglage fantôme non autorisé : {k}")
+        lo, hi = SHADOW_BOUNDS[k]
+        if not lo <= float(v) <= hi:
+            raise ConfigError(f"{k}={v} hors des bornes fantômes [{lo}, {hi}]")
+    if cap:
+        r = replace(out.risk, **{k: float(v) for k, v in cap.items()})
+        if not 0 < r.operational_loss_limit_eur < r.hard_loss_limit_eur:
+            raise ConfigError("fantôme : arrêt opérationnel doit être < perte max")
+        if r.max_loss_per_trade_eur > r.operational_loss_limit_eur or r.max_daily_loss_eur > r.operational_loss_limit_eur:
+            raise ConfigError("fantôme : limites par trade/jour incohérentes")
+        out = replace(out, risk=r)
+    venue = spec.get("venue")
+    if venue:
+        if venue not in SHADOW_VENUES:
+            raise ConfigError(f"plateforme fantôme inconnue : {venue}")
+        out = replace(out, venue=replace(out.venue, **SHADOW_VENUES[venue]))
+    return out

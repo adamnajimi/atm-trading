@@ -127,7 +127,9 @@ def run_research(cfg: Config, datasets: dict[str, pd.DataFrame]) -> dict:
             from .strategies.dip import RsiDip
             types = {"trend_sma": TrendSMA, "rsi_dip": RsiDip}
             for cname, spec in cfg.shadow_strategies.items():
-                rc = _seg(cfg, types[spec["type"]](**spec.get("params", {})), asset, research_df, start, end)
+                from .config import with_shadow_overrides
+                rc = _seg(with_shadow_overrides(cfg, spec), types[spec["type"]](**spec.get("params", {})),
+                          asset, research_df, start, end)
                 if rc:
                     rc.segment = name
                     out["candidates"].append({**rc.__dict__, "strategy": cname})
@@ -154,7 +156,7 @@ def run_research(cfg: Config, datasets: dict[str, pd.DataFrame]) -> dict:
             from .strategies.trend import TrendSMA as _T
             strats = {"trend_sma": base_params}
             strats.update({n: sp.get("params", {}) for n, sp in cfg.shadow_strategies.items()
-                           if sp.get("type") == "trend_sma" and not sp.get("risk_trial")})
+                           if sp.get("type") == "trend_sma" and not (sp.get("risk_trial") or sp.get("venue") or sp.get("shadow_capital"))})
             for scen, venue_over in COST_SCENARIOS.items():
                 ccfg = _replace(cfg, venue=_replace(cfg.venue, **venue_over))
                 for sname, sparams in strats.items():
