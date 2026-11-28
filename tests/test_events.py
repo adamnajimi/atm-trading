@@ -29,3 +29,11 @@ def test_dashboard_without_data(tmp_path):
     from atm.dashboard import build
     page = build(tmp_path)
     assert "aucun" in page and "<script" in page
+
+
+def test_virtual_office_rooms(tmp_path):
+    from atm.dashboard import build
+    from atm.events import emit
+    emit(tmp_path / "state" / "events.jsonl", "risque", "verdict", "principal BTC/EUR", "termine", run_id="r1")
+    page = build(tmp_path)
+    assert "Virtual Office" in page and "Gestion des risques" in page and "Rejouer le dernier cycle" in page

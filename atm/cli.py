@@ -194,6 +194,44 @@ def cmd_paper(args) -> int:
     return 1 if errors else 0
 
 
+def replay(cfg, data_by_asset: dict, date: str) -> str:
+    """Rejoue la décision qu'aurait prise chaque stratégie à la clôture du jour `date`,
+    avec uniquement les barres <= date (aucune information future) et un portefeuille vierge."""
+    import pandas as pd
+    from datetime import timedelta
+    from .config import with_shadow_overrides
+    from .orchestrator import run_cycle
+    cut = pd.Timestamp(date, tz="UTC")
+    specs = [("principal", cfg, build_strategies(cfg))]
+    for name, spec in cfg.shadow_strategies.items():
+        strat = STRATEGY_TYPES[spec["type"]](**spec.get("params", {}))
+        strat.name = name
+        specs.append((name, with_shadow_overrides(cfg, spec), [strat]))
+    lines = [f"# Rejeu du {date} (barres jusqu'au {date} inclus, portefeuilles vierges)", "",
+             "| Portefeuille | Actif | Décision | Verdict du risque | Montant | Justification |", "| --- | --- | --- | --- | --- | --- |"]
+    for asset, data in data_by_asset.items():
+        hist = data[data.index <= cut]
+        if hist.empty or hist.index[-1] != cut:
+            lines.append(f"| — | {asset} | pas de barre le {date} | — | — | — |")
+            continue
+        now = (cut + timedelta(days=1)).to_pydatetime()
+        for label, c, strats in specs:
+            state = PortfolioState(cash_eur=c.risk.initial_eur, initial_eur=c.risk.initial_eur)
+            res = run_cycle(c, strats, asset, hist, state, now)
+            v = res.verdict
+            lines.append(f"| {label} | {asset} | {res.decision.action.value} | {'accepté' if v.approved else 'refusé'} : {v.reason} | "
+                         f"{v.notional_eur:.2f} € | {res.decision.rationale} |")
+    return "\n".join(lines) + "\n"
+
+
+def cmd_replay(args) -> int:
+    from .data.fetch import load_csv
+    cfg = load(args.config)
+    data = {a: load_csv(_csv(args.data, a)) for a in cfg.paper_universe}
+    print(replay(cfg, data, args.date))
+    return 0
+
+
 def cmd_fetch(args) -> int:
     from .data.fetch import fetch_daily_ohlcv, save_csv
     cfg = load(args.config)
@@ -295,9 +333,12 @@ def main(argv=None) -> int:
     pp.add_argument("--force", action="store_true", help="refaire le cycle même si le rapport du jour existe")
     sub.add_parser("status")
     sub.add_parser("dashboard")
+    rp = sub.add_parser("replay")
+    rp.add_argument("--date", required=True)
+    rp.add_argument("--data", default="data")
     args = ap.parse_args(argv)
     return {"backtest": cmd_backtest, "fetch": cmd_fetch, "research": cmd_research, "check": cmd_check, "final-test": cmd_final_test,
-            "paper": cmd_paper, "status": cmd_status, "dashboard": cmd_dashboard}[args.cmd](args)
+            "paper": cmd_paper, "status": cmd_status, "dashboard": cmd_dashboard, "replay": cmd_replay}[args.cmd](args)
 
 
 if __name__ == "__main__":

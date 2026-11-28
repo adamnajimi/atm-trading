@@ -11,4 +11,5 @@
 | Recherche (`research.py`) | Scénarios coûts/capital sans toucher au test final | `test_research.py` | Acquis |
 | Exécution limite | Simuler un ordre limite et son remplissage | aucune | Manquant |
 | Information (X, actualités) | Vérifier une source | aucune | Manquant |
-| Observabilité | Journal d'événements structuré | aucune | Manquant |
+| Observabilité | Journal d'événements structuré, Command Center, Virtual Office | `test_events.py`, `test_paper_shadow.py` | Acquis |
+| Rejeu | Décision à une date passée sans information future | `test_lookahead.py::test_replay_uses_only_past_bars` | Acquis |
