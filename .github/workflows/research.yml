@@ -28,6 +28,9 @@ jobs:
       - name: Contrôle croisé Kraken (720 derniers jours)
         continue-on-error: true
         run: python -m atm.cli fetch --exchange kraken --since "" --out data_kraken
+      - name: Règles de marché Bitvavo BTC-EUR (public, sans clé ; minimum d'ordre)
+        continue-on-error: true
+        run: curl -fsS "https://api.bitvavo.com/v2/markets?market=BTC-EUR" && echo && curl -fsS "https://api.bitvavo.com/v2/BTC-EUR/candles?interval=1d&limit=3"
       - name: Inspection des anomalies de données
         run: python -m atm.cli check --data data --second data_kraken --out results
       - name: Recherche (le test final reste réservé)

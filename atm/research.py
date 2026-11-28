@@ -38,6 +38,27 @@ RISK_TRIALS = [  # jeux de limites d'essai (tests uniquement), voir config.TRIAL
     {"max_loss_per_trade_eur": 1.5, "gap_safety_factor": 1.25},
 ]
 
+# Scénarios de coûts (tests uniquement, la config du paper trading ne change pas).
+# Tarifs relevés le 2026-11-28 sur les pages officielles (palier le plus bas, spot) :
+# Kraken Pro 0,40 % maker / 0,80 % taker ; Bitvavo (marchés EUR) 0,15 % / 0,25 %.
+COST_SCENARIOS = {
+    "kraken_taker (actuel)": {},
+    "kraken_maker": {"taker_fee": 0.0040},
+    "bitvavo_taker": {"taker_fee": 0.0025},
+    "bitvavo_maker": {"taker_fee": 0.0015},
+}
+
+# Scénarios de capital (backtest uniquement ; demandé par Adam le 2026-11-28 : budget 50 €).
+# Aucune de ces limites n'est adoptée : le paper trading et le plafond de config restent à 20 €.
+CAPITAL_SCENARIOS = {
+    "20 € (actuel)": {},
+    "50 €, limites actuelles": {"initial_eur": 50.0},
+    "50 €, intermédiaire": {"initial_eur": 50.0, "max_loss_per_trade_eur": 1.5, "max_daily_loss_eur": 3.0,
+                            "operational_loss_limit_eur": 12.0, "hard_loss_limit_eur": 15.0},
+    "50 €, proportionnel": {"initial_eur": 50.0, "max_loss_per_trade_eur": 2.5, "max_daily_loss_eur": 5.0,
+                            "operational_loss_limit_eur": 17.5, "hard_loss_limit_eur": 25.0},
+}
+
 SENSITIVITY_GRID = {
     "sma_window": [50, 100, 150, 200],
     "stop_atr_multiple": [2.0, 3.0, 4.0],
@@ -80,7 +101,7 @@ def _segment(cfg: Config, strategy: TrendSMA, asset: str, data: pd.DataFrame, st
 
 def run_research(cfg: Config, datasets: dict[str, pd.DataFrame]) -> dict:
     out: dict = {"protocol": {"segments": SEGMENTS, "final_test_start": FINAL_TEST_START,
-                              "final_test_run": False}, "data": {}, "segments": [], "candidates": [], "sensitivity": [], "risk_trials": []}
+                              "final_test_run": False}, "data": {}, "segments": [], "candidates": [], "sensitivity": [], "risk_trials": [], "cost_scenarios": [], "capital_scenarios": []}
     base_params = cfg.strategies.get("trend_sma", {}).get("params", {})
     for asset, df in datasets.items():
         rep = validate_ohlcv(df)
@@ -119,6 +140,39 @@ def run_research(cfg: Config, datasets: dict[str, pd.DataFrame]) -> dict:
                                                        "net_return": r.stats["net_return"], "max_loss_eur": r.stats["max_loss_eur"],
                                                        "max_drawdown": r.stats["max_drawdown"], "n_round_trips": r.stats["n_round_trips"],
                                                        "fees_eur": r.stats["fees_eur"], "suspended": r.stats["suspended"]})
+        # Scénarios de coûts : BTC, mêmes stratégies, mêmes limites de risque
+        if asset == "BTC/EUR":
+            from dataclasses import replace as _replace
+            from .strategies.trend import TrendSMA as _T
+            strats = {"trend_sma": base_params}
+            strats.update({n: sp.get("params", {}) for n, sp in cfg.shadow_strategies.items()
+                           if sp.get("type") == "trend_sma" and not sp.get("risk_trial")})
+            for scen, venue_over in COST_SCENARIOS.items():
+                ccfg = _replace(cfg, venue=_replace(cfg.venue, **venue_over))
+                for sname, sparams in strats.items():
+                    for segname, (start, end) in SEGMENTS.items():
+                        r = _segment(ccfg, _T(**sparams), asset, research_df, start, end)
+                        if r:
+                            out["cost_scenarios"].append({"scenario": scen, "one_way_cost": ccfg.venue.one_way_cost,
+                                                          "strategy": sname, "segment": segname,
+                                                          "net_return": r.stats["net_return"], "max_loss_eur": r.stats["max_loss_eur"],
+                                                          "n_round_trips": r.stats["n_round_trips"], "fees_eur": r.stats["fees_eur"]})
+            # Scénarios de capital × coûts (Kraken taker actuel, Bitvavo taker)
+            for capname, rover in CAPITAL_SCENARIOS.items():
+                for costname in ("kraken_taker (actuel)", "bitvavo_taker"):
+                    kcfg = _replace(cfg, risk=_replace(cfg.risk, **rover),
+                                    venue=_replace(cfg.venue, **COST_SCENARIOS[costname]))  # hors _validate : backtest seulement
+                    for sname, sparams in strats.items():
+                        for segname, (start, end) in SEGMENTS.items():
+                            r = _segment(kcfg, _T(**sparams), asset, research_df, start, end)
+                            if r:
+                                out["capital_scenarios"].append({
+                                    "capital": capname, "costs": costname, "strategy": sname, "segment": segname,
+                                    "initial_eur": kcfg.risk.initial_eur, "net_return": r.stats["net_return"],
+                                    "final_eur": kcfg.risk.initial_eur * (1 + r.stats["net_return"]),
+                                    "max_loss_eur": r.stats["max_loss_eur"], "stop_eur": kcfg.risk.operational_loss_limit_eur,
+                                    "n_round_trips": r.stats["n_round_trips"], "fees_eur": r.stats["fees_eur"],
+                                    "suspended": r.stats["suspended"]})
         # Sensibilité aux paramètres : sur l'entraînement uniquement (Challenger)
         start, end = SEGMENTS["entrainement"]
         for sma, stop in itertools.product(SENSITIVITY_GRID["sma_window"], SENSITIVITY_GRID["stop_atr_multiple"]):
@@ -164,6 +218,19 @@ def to_markdown(res: dict) -> str:
     for t in res.get("risk_trials", []):
         L.append(f"| {t['limits']} | {t['strategy']} | {t['segment']} | {_f(t['net_return'], True)} | {_f(t['max_loss_eur'])} | "
                  f"{_f(t['max_drawdown'], True)} | {t['n_round_trips']} | {_f(t['fees_eur'])} | {'oui' if t['suspended'] else 'non'} |")
+    L += ["", "## Scénarios de coûts (BTC, tests uniquement ; coût par ordre = frais + 0,1 % de glissement)", "",
+          "| Scénario | Coût/ordre | Stratégie | Segment | Rendement net | Perte max (€) | Allers-retours | Frais (€) |",
+          "| --- | --- | --- | --- | --- | --- | --- | --- |"]
+    for t in res.get("cost_scenarios", []):
+        L.append(f"| {t['scenario']} | {t['one_way_cost']:.2%} | {t['strategy']} | {t['segment']} | {_f(t['net_return'], True)} | "
+                 f"{_f(t['max_loss_eur'])} | {t['n_round_trips']} | {_f(t['fees_eur'])} |")
+    L += ["", "## Scénarios de capital (BTC, backtest uniquement ; aucune limite adoptée)", "",
+          "| Capital / limites | Coûts | Stratégie | Segment | Rendement net | Gain (€) | Perte max (€) | Arrêt (€) | Allers-retours | Frais (€) | Suspendu |",
+          "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
+    for t in res.get("capital_scenarios", []):
+        L.append(f"| {t['capital']} | {t['costs']} | {t['strategy']} | {t['segment']} | {_f(t['net_return'], True)} | "
+                 f"{_f(t['final_eur'] - t['initial_eur'])} | {_f(t['max_loss_eur'])} | {_f(t['stop_eur'])} | {t['n_round_trips']} | "
+                 f"{_f(t['fees_eur'])} | {'oui' if t['suspended'] else 'non'} |")
     L += ["", "## Sensibilité (entraînement uniquement)", "",
           "| Actif | SMA | Stop (×ATR) | Rendement net | Max DD | Allers-retours | Frais (€) |", "| --- | --- | --- | --- | --- | --- | --- |"]
     for s in res["sensitivity"]:
