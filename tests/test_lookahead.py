@@ -26,3 +26,13 @@ def test_no_lookahead_decisions(cfg, strategy):
         part = run_backtest(cfg, [strategy], "BTC/EUR", data.iloc[:cut])
         assert part.decisions == full.decisions[: len(part.decisions)], f"lookahead détecté avant la barre {cut}"
         assert part.trades == full.trades[: len(part.trades)]
+
+
+def test_replay_uses_only_past_bars(cfg):
+    from atm.cli import replay
+    data = random_walk_ohlcv(500, start="2020-01-01", seed=3)
+    date = str(data.index[400].date())
+    a = replay(cfg, {"BTC/EUR": data}, date)
+    b = replay(cfg, {"BTC/EUR": data.iloc[:401]}, date)  # sans aucune barre future
+    assert a == b and "principal" in a and "trend_sma_cap50" in a
+    assert "pas de barre" in replay(cfg, {"BTC/EUR": data}, "1999-01-01")

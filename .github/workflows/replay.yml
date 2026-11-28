@@ -1,0 +1,32 @@
+# Rejeu d'une date passée : décisions de chaque portefeuille avec uniquement les barres <= date.
+# Lancement manuel uniquement. Aucun ordre, aucun secret, aucune écriture dans le dépôt.
+name: replay
+
+on:
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "Date à rejouer (AAAA-MM-JJ, clôture UTC)"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: Prix publics
+        run: python -m atm.cli fetch --exchange coinbaseexchange --out data
+      - name: Rejeu
+        env:
+          REPLAY_DATE: ${{ inputs.date }}
+        run: |
+          python -m atm.cli replay --date "$REPLAY_DATE" --data data | tee replay.md
+          cat replay.md >> "$GITHUB_STEP_SUMMARY"
