@@ -1,6 +1,6 @@
 # PROJECT_STATE — ATM
 
-Dernière mise à jour : 2026-11-27.
+Dernière mise à jour : 2026-11-28.
 
 ## Étape en cours
 
@@ -32,9 +32,9 @@ Rapport de faisabilité : https://claude.ai/artifact/7Fqjaz64b8QCfKD2RhSCkc
 ## Code (dossier `atm/`)
 
 - Fait : config validée (refuse toute limite relâchée), modèles de messages, gestionnaire de risques, kill switch, validation des données, stratégie candidate `trend_sma`, orchestrateur + vote pondéré, moteur de backtest chronologique, statistiques, paper broker idempotent, broker réel bloqué, journal d'audit, rapport quotidien, CLI, workflow GitHub Actions.
-- Dépôt : https://github.com/adamnajimi/atm-trading, PR #1 fusionnée dans main le 2026-11-27. Branche en cours : `claude/autonomous-research`.
+- Dépôt : https://github.com/adamnajimi/atm-trading, PR #1 fusionnée dans main le 2026-11-27. PR #2 à #4 fusionnées le 2026-11-27.
 - Tests : 43 tests passent (conteneur Python 3.13 et GitHub Actions Python 3.12, 2026-11-27).
-- Workflow `research` (push sur claude/** ou main) : télécharge les prix publics Coinbase Exchange, contrôle Kraken, lance la recherche. Workflow `paper` désactivé jusqu'à l'étape D.
+- Workflow `research` (push sur claude/** ou main) : télécharge les prix publics Coinbase Exchange, contrôle Kraken, lance la recherche. Workflow `paper` actif sur main (4 créneaux par jour, un seul cycle).
 - Le conteneur cloud ne peut pas télécharger les artefacts GitHub (stockage blob bloqué) : lire les résultats dans les logs du job.
 
 ## Progression autonome (demandée par Adam le 2026-11-27)
@@ -42,6 +42,14 @@ Rapport de faisabilité : https://claude.ai/artifact/7Fqjaz64b8QCfKD2RhSCkc
 - Journal des erreurs et leçons : `docs/LESSONS.md`. Journal de recherche et critères de promotion figés : `docs/RESEARCH_LOG.md`.
 - Fantômes (20 € fictifs chacun, `state/shadow/`) à partir du 2026-11-28 : `trend_sma_fast` et `trend_sma_risk15` (essai de limite 1,5 €/trade autorisé par Adam pour les tests). `rsi_dip` rejetée au backtest. Limites du portefeuille principal inchangées.
 - Pas de revue automatique par Claude (supprimée à la demande d'Adam le 2026-11-27 : elle consommait son quota Claude Pro). Tout ce qui tourne seul est en Python sur GitHub Actions ; les journaux sont mis à jour quand Adam ouvre une session.
+
+## 2026-11-28
+
+- Le cycle planifié de 01:17 UTC n'a pas été lancé par GitHub (aucun run « schedule »). Correctif : créneaux de secours 04:43, 09:29 et 15:11 UTC, un seul cycle par jour UTC (`paper --force` pour refaire). Cycle du 28 relancé à la main.
+- Frais : Bitvavo (0,15 % / 0,25 %, MiCA via l'AFM, liste blanche AMF) coûte environ 2,5 fois moins par aller-retour que Kraken Pro (0,40 % / 0,80 %). Scénarios de coûts ajoutés à la recherche. Changement de plateforme = décision d'Adam.
+- Adam propose un budget de 50 €. Scénarios de capital (20 € actuel, 50 € avec limites actuelles, intermédiaires, proportionnelles) en backtest seulement ; aucune limite adoptée, plafond de config toujours 20 €.
+- Posts X autorisés comme source d'idées, toujours vérifiées (règles dans docs/RESEARCH_LOG.md).
+- Plus de points automatiques (9h/18h) : Adam demande quand il veut.
 
 ## Tâches restantes
 

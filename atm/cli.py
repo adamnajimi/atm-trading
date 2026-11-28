@@ -107,6 +107,12 @@ def cmd_paper(args) -> int:
     log_path = root / "state" / "audit.jsonl"
     log_path.parent.mkdir(parents=True, exist_ok=True)
     now = datetime.now(timezone.utc)
+    today_report = root / "state" / "reports" / f"{now:%Y-%m-%d}.md"
+    if today_report.exists() and not getattr(args, "force", False):
+        # Le workflow a plusieurs créneaux de secours (GitHub saute parfois un cron) :
+        # un seul cycle par jour UTC, les créneaux suivants ne font rien.
+        print(f"cycle du {now:%Y-%m-%d} déjà fait ({today_report.name}) : rien à faire")
+        return 0
     kill = killswitch.is_active(root)
 
     data_by_asset, errors = {}, []
@@ -246,7 +252,8 @@ def main(argv=None) -> int:
     ft = sub.add_parser("final-test")
     ft.add_argument("--data", default="data")
     ft.add_argument("--out", default="results")
-    sub.add_parser("paper")
+    pp = sub.add_parser("paper")
+    pp.add_argument("--force", action="store_true", help="refaire le cycle même si le rapport du jour existe")
     sub.add_parser("status")
     args = ap.parse_args(argv)
     return {"backtest": cmd_backtest, "fetch": cmd_fetch, "research": cmd_research, "check": cmd_check, "final-test": cmd_final_test,

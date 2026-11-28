@@ -6,6 +6,11 @@ name: paper-trading
 on:
   schedule:
     - cron: "17 1 * * *"   # 01:17 UTC chaque jour, hors début d'heure (moins de retards)
+    # Créneaux de secours : le cron du 2026-11-28 01:17 UTC n'a jamais été lancé par GitHub.
+    # Le cycle ne s'exécute qu'une fois par jour UTC (les créneaux suivants ne font rien).
+    - cron: "43 4 * * *"
+    - cron: "29 9 * * *"
+    - cron: "11 15 * * *"
   workflow_dispatch: {}
 
 permissions:
@@ -37,4 +42,5 @@ jobs:
           git config user.email "atm-bot@users.noreply.github.com"
           git add state/
           git diff --cached --quiet || git commit -m "paper: cycle $(date -u +%F)"
+          git pull --rebase --autostash || true
           git push

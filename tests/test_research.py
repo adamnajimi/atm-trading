@@ -13,6 +13,10 @@ def test_research_never_touches_final_test(cfg):
     assert all(pd.Timestamp(s["end"]) < pd.Timestamp(FINAL_TEST_START) for s in res["segments"])
     assert {s["segment"] for s in res["segments"]} == {"entrainement", "validation"}
     assert len(res["sensitivity"]) == 12
+    assert {c["scenario"] for c in res["cost_scenarios"]} == {"kraken_taker (actuel)", "kraken_maker", "bitvavo_taker", "bitvavo_maker"}
+    assert "Scénarios de coûts" in to_markdown(res)
+    caps = {c["capital"]: c for c in res["capital_scenarios"]}
+    assert caps["50 €, limites actuelles"]["initial_eur"] == 50.0
     assert "non exécuté" in to_markdown(res)
 
 

@@ -34,6 +34,14 @@ def test_paper_cycle_runs_main_and_shadows(tmp_path, monkeypatch):
     main(["--config", str(root / "config" / "config.yaml"), "--root", str(root), "paper"])
     after = PortfolioState.from_json((root / "state" / "portfolio.json").read_text()).trades
     assert len(after) == len(before)
+    # un créneau de secours le même jour ne refait rien (pas de doublon dans le journal)
+    audit = (root / "state" / "audit.jsonl").read_text(encoding="utf-8")
+    assert main(["--config", str(root / "config" / "config.yaml"), "--root", str(root), "paper"]) == 0
+    assert (root / "state" / "audit.jsonl").read_text(encoding="utf-8") == audit
+    # --force refait le cycle, toujours sans ordre en double
+    main(["--config", str(root / "config" / "config.yaml"), "--root", str(root), "paper", "--force"])
+    assert len((root / "state" / "audit.jsonl").read_text(encoding="utf-8")) > len(audit)
+    assert len(PortfolioState.from_json((root / "state" / "portfolio.json").read_text()).trades) == len(before)
 
 
 def test_apply_stop_sells_at_stop_or_gap(cfg):
