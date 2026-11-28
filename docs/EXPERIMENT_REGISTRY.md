@@ -10,4 +10,4 @@ Chaque expérience est notée **avant** son lancement (hypothèse, critère d'ar
 | E4 | 2026-11-28 | Des frais plus bas (Bitvavo, ordres limites) améliorent le résultat | 4 scénarios de coûts, BTC | Validation +16,7 % → +28,5 % (Bitvavo taker) | Proposé à Adam |
 | E5 | 2026-11-28 | 50 € de capital améliore le résultat | Mêmes limites vs limites relevées | Aucun gain à limites égales | Proposé à Adam |
 | E6 | 2026-11-28 | Le moteur et les stratégies ne regardent pas l'avenir | Décisions identiques avec et sans barres futures (3 coupures) | Passe pour les 3 stratégies | Test permanent |
-| E7 | 2026-11-28 | L'avantage de validation survit au nombre d'essais | Sharpe déflaté sur tous les essais BTC de validation ; seuil 95 % | voir workflow research | En cours |
+| E7 | 2026-11-28 | L'avantage de validation survit au nombre d'essais | Sharpe déflaté sur tous les essais BTC de validation ; seuil 95 % | 45 essais ; trend_sma DSR 21,7 % ; meilleur essai (Sharpe annualisé 1,17) DSR 61,3 % (run 46121423431) | Terminé : aucun avantage prouvé |

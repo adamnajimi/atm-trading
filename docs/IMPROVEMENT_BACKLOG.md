@@ -7,8 +7,7 @@ Remplace aussi NEXT_ACTIONS et LEARNING_ROADMAP. Correspondances : FAILURE_DATAB
 2. Portefeuille fictif de 50 € (limites intermédiaires ou proportionnelles).
 
 ## Prochaines actions (simulation)
-1. Journal d'événements structuré (id, horodatage, agent, type, tâche, statut, résultat, durée, sources, erreurs) écrit par chaque cycle et chaque recherche.
-2. Tableau de bord statique (GitHub Pages) lu depuis `state/` et le journal : mode « Command Center » d'abord, « Virtual Office » ensuite, uniquement à partir d'événements réels.
+1. Fait le 2026-11-28 : journal d'événements (`state/events.jsonl`) et Command Center statique (`docs/dashboard/`). Reste : publication GitHub Pages (réglage à activer par Adam), événements de la recherche, mode « Virtual Office ».
 3. Protection après série de stops (idée Freqtrade StoplossGuard) : backtest, puis fantôme.
 4. Probabilité de surapprentissage (CSCV) sur les grilles de paramètres.
 5. Accès X : étudier l'API officielle (coût, conditions) ; proposition budgétaire seulement si utile.

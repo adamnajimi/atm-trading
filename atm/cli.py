@@ -100,6 +100,23 @@ def run_portfolio(cfg, strategies, state_path, log_path, data_by_asset, now, kil
     return cycles, errors, summary
 
 
+def _emit_portfolio(ev_path, run_id, label, cycles, errs, summary):
+    """Un événement par décision de stratégie, par verdict du risque et par ordre fictif réellement passé."""
+    from .events import emit
+    for c in cycles:
+        d, v = c["decision"], c["verdict"]
+        emit(ev_path, f"strategie:{d['strategy']}", "decision", f"{label} {c['asset']}", "termine",
+             {"action": d["action"], "justification": d["rationale"], "donnees_au": d["data_asof"]}, run_id=run_id)
+        emit(ev_path, "risque", "verdict", f"{label} {c['asset']}", "termine",
+             {"approuve": v["approved"], "action": v["action"], "raison": v["reason"], "montant_eur": v["notional_eur"]},
+             run_id=run_id)
+        if c.get("order"):
+            emit(ev_path, "execution", "ordre_fictif", f"{label} {c['asset']}", "termine", c["order"], run_id=run_id)
+    emit(ev_path, "portefeuille", "etat", label, "erreur" if errs else "termine",
+         {k: summary[k] for k in ("equity_eur", "fees_eur", "distance_to_stop_eur", "positions", "suspended", "n_trades")},
+         errors=errs, run_id=run_id)
+
+
 def cmd_paper(args) -> int:
     cfg = load(args.config)
     from .data.fetch import fetch_daily_ohlcv
@@ -108,28 +125,39 @@ def cmd_paper(args) -> int:
     log_path.parent.mkdir(parents=True, exist_ok=True)
     now = datetime.now(timezone.utc)
     today_report = root / "state" / "reports" / f"{now:%Y-%m-%d}.md"
+    from .events import emit, span
+    ev_path = root / "state" / "events.jsonl"
+    run_id = f"paper-{now:%Y%m%dT%H%M%S}"
     if today_report.exists() and not getattr(args, "force", False):
         # Le workflow a plusieurs créneaux de secours (GitHub saute parfois un cron) :
-        # un seul cycle par jour UTC, les créneaux suivants ne font rien.
+        # un seul cycle par jour UTC, les créneaux suivants ne font rien (et n'écrivent rien).
         print(f"cycle du {now:%Y-%m-%d} déjà fait ({today_report.name}) : rien à faire")
         return 0
     kill = killswitch.is_active(root)
 
     data_by_asset, errors = {}, []
+    emit(ev_path, "superviseur", "cycle_debut", "cycle de paper trading", "termine",
+         {"kill_switch": kill, "actifs": list(cfg.paper_universe)}, run_id=run_id)
     for asset in cfg.paper_universe:
         try:
-            data = fetch_daily_ohlcv(asset, cfg.venue.name)
-            rep = validate_ohlcv(data)
-            if rep.ok:
-                data_by_asset[asset] = data
-            else:
-                errors.append(f"{asset} : données refusées {rep.errors}")
+            with span(ev_path, "donnees", "telechargement", f"bougies journalières {asset}", run_id) as sp:
+                sp.sources = [f"{cfg.venue.name} OHLC public"]
+                data = fetch_daily_ohlcv(asset, cfg.venue.name)
+                rep = validate_ohlcv(data)
+                sp.result = {"barres": len(data), "derniere": str(data.index[-1].date()), "valide": rep.ok,
+                             "avertissements": rep.warnings}
+                if rep.ok:
+                    data_by_asset[asset] = data
+                else:
+                    sp.errors = [f"données refusées {rep.errors}"]
+                    errors.append(f"{asset} : données refusées {rep.errors}")
         except Exception as e:
             errors.append(f"{asset} : {type(e).__name__}: {e}")
             log_event(log_path, "error", {"asset": asset, "error": str(e)})
 
     cycles, errs, summary = run_portfolio(cfg, build_strategies(cfg), root / "state" / "portfolio.json",
                                           log_path, data_by_asset, now, kill)
+    _emit_portfolio(ev_path, run_id, "principal", cycles, errs, summary)
     errors += errs
     report = daily_report(cycles, summary, errors)
 
@@ -146,6 +174,7 @@ def cmd_paper(args) -> int:
                                  log_path, data_by_asset, now, kill, label=name)
         errors += e
         shadow_errors += e
+        _emit_portfolio(ev_path, run_id, name, c, e, sm)
         acts = ", ".join(f"{x['asset']} {x['decision']['action']}" for x in c) or "—"
         shadow_lines.append(f"| {name} | {sm['equity_eur']:.2f} € | {sm['n_trades']} | {sm['fees_eur']:.2f} € | {acts} |")
     if shadow_lines:
@@ -157,6 +186,8 @@ def cmd_paper(args) -> int:
 
     (root / "state" / "reports").mkdir(parents=True, exist_ok=True)
     (root / "state" / "reports" / f"{now:%Y-%m-%d}.md").write_text(report, encoding="utf-8")
+    emit(ev_path, "rapporteur", "rapport", f"rapport du {now:%Y-%m-%d}", "erreur" if errors else "termine",
+         {"fichier": f"state/reports/{now:%Y-%m-%d}.md"}, errors=errors, run_id=run_id)
     print(report)
     return 1 if errors else 0
 
@@ -222,6 +253,12 @@ def cmd_final_test(args) -> int:
     return 0
 
 
+def cmd_dashboard(args) -> int:
+    from .dashboard import write
+    print(f"tableau de bord écrit : {write(args.root)}")
+    return 0
+
+
 def cmd_status(args) -> int:
     p = Path(args.root) / "state" / "portfolio.json"
     print(p.read_text(encoding="utf-8") if p.exists() else "aucun état : le paper trading n'a pas encore tourné")
@@ -255,9 +292,10 @@ def main(argv=None) -> int:
     pp = sub.add_parser("paper")
     pp.add_argument("--force", action="store_true", help="refaire le cycle même si le rapport du jour existe")
     sub.add_parser("status")
+    sub.add_parser("dashboard")
     args = ap.parse_args(argv)
     return {"backtest": cmd_backtest, "fetch": cmd_fetch, "research": cmd_research, "check": cmd_check, "final-test": cmd_final_test,
-            "paper": cmd_paper, "status": cmd_status}[args.cmd](args)
+            "paper": cmd_paper, "status": cmd_status, "dashboard": cmd_dashboard}[args.cmd](args)
 
 
 if __name__ == "__main__":

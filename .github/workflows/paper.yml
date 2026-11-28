@@ -35,12 +35,15 @@ jobs:
       - run: python -m pytest -q
       - name: Cycle de paper trading
         run: python -m atm.cli paper
+      - name: Tableau de bord (fichiers réels du dépôt)
+        if: always()
+        run: python -m atm.cli dashboard
       - name: Enregistrer l'état et le rapport
         if: always()
         run: |
           git config user.name "atm-bot"
           git config user.email "atm-bot@users.noreply.github.com"
-          git add state/
+          git add state/ docs/dashboard/
           git diff --cached --quiet || git commit -m "paper: cycle $(date -u +%F)"
           git pull --rebase --autostash || true
           git push
