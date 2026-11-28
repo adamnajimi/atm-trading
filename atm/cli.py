@@ -168,18 +168,20 @@ def cmd_paper(args) -> int:
             continue
         strat = STRATEGY_TYPES[spec["type"]](**spec.get("params", {}))
         strat.name = name
-        from .config import with_risk_trial
-        scfg = with_risk_trial(cfg, spec.get("risk_trial"))
+        from .config import with_shadow_overrides
+        scfg = with_shadow_overrides(cfg, spec)
         c, e, sm = run_portfolio(scfg, [strat], root / "state" / "shadow" / f"{name}.json",
                                  log_path, data_by_asset, now, kill, label=name)
         errors += e
         shadow_errors += e
         _emit_portfolio(ev_path, run_id, name, c, e, sm)
         acts = ", ".join(f"{x['asset']} {x['decision']['action']}" for x in c) or "—"
-        shadow_lines.append(f"| {name} | {sm['equity_eur']:.2f} € | {sm['n_trades']} | {sm['fees_eur']:.2f} € | {acts} |")
+        shadow_lines.append(f"| {name} | {sm['initial_eur']:.2f} € | {sm['equity_eur']:.2f} € | {sm['n_trades']} | "
+                            f"{sm['fees_eur']:.2f} € | {scfg.venue.name} | {acts} |")
     if shadow_lines:
-        report += ("\n## Stratégies candidates (portefeuilles fantômes, 20 € fictifs chacun)\n\n"
-                   "| Candidate | Valeur | Ordres | Frais | Décision du jour |\n| --- | --- | --- | --- | --- |\n"
+        report += ("\n## Stratégies candidates (portefeuilles fantômes, argent fictif)\n\n"
+                   "| Candidate | Capital fictif | Valeur | Ordres | Frais | Frais supposés | Décision du jour |\n"
+                   "| --- | --- | --- | --- | --- | --- | --- |\n"
                    + "\n".join(shadow_lines) + "\n")
     if shadow_errors:
         report += "\n## Erreurs des candidates\n" + "".join(f"- {x}\n" for x in shadow_errors)

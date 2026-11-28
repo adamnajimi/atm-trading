@@ -64,4 +64,29 @@ shadow_strategies:
       momentum_window: 50
       atr_window: 14
       stop_atr_multiple: 3.0
+  # Ajoutés le 2026-11-28 (Adam : « fais ce qui te semble le mieux ») — fictifs uniquement.
+  trend_sma_bitvavo:           # même stratégie que le principal, frais Bitvavo (0,25 % taker)
+    type: trend_sma
+    since: "2026-11-28"
+    venue: bitvavo
+    params:
+      sma_window: 100
+      momentum_window: 50
+      atr_window: 14
+      stop_atr_multiple: 3.0
+  trend_sma_cap50:             # 50 € fictifs, limites intermédiaires, frais Bitvavo
+    type: trend_sma
+    since: "2026-11-28"
+    venue: bitvavo
+    shadow_capital:
+      initial_eur: 50.0
+      max_loss_per_trade_eur: 1.5
+      max_daily_loss_eur: 3.0
+      operational_loss_limit_eur: 12.0
+      hard_loss_limit_eur: 15.0
+    params:
+      sma_window: 100
+      momentum_window: 50
+      atr_window: 14
+      stop_atr_multiple: 3.0
 # rsi_dip rejetée le 2026-11-27 avant le fantôme : sous le cash en entraînement et en validation (docs/RESEARCH_LOG.md).
