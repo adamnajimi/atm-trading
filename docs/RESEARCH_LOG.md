@@ -61,11 +61,26 @@ Spot uniquement, sans levier ni CFD, régulée MiCA et autorisée en France, API
 
 Pourquoi XM Trading coûtait moins cher en apparence : XM vend des CFD avec levier (pas de vraie crypto), le coût est caché dans le spread et les frais de financement de nuit, et, à notre connaissance (non vérifié ici), la marque XMTrading dépend d'une entité du groupe hors UE. Exclu par les règles du projet (pas de levier, pas de CFD).
 
-Recommandation provisoire : Bitvavo, si le minimum d'ordre BTC-EUR (lu par le workflow `research` via l'API publique) est compatible. Avec des ordres limites « post only », le coût tombe à 0,15 % par ordre. Ouvrir un compte reste une décision d'Adam.
+Minimum d'ordre Bitvavo BTC-EUR lu par l'API publique (run 46120189466) : 5,00 €, ordres market/limit/stopLoss disponibles, bougies journalières publiques accessibles depuis GitHub Actions.
+
+Résultats backtest BTC, trend_sma, validation 2022–mi-2024 (run 46120189466) : Kraken taker +16,7 % (frais 2,02 €) ; Kraken maker +27,6 % (1,11 €) ; Bitvavo taker +28,5 % (0,73 €) ; Bitvavo maker +31,3 % (0,44 €). trend_sma_fast : +45,8 % → +64,8 % (Bitvavo taker). La perte max baisse aussi (2,57 € → 1,73 €).
+
+Recommandation : Bitvavo (proposée à Adam, non adoptée). Avec des ordres limites « post only », le coût tombe à 0,15 % par ordre. Ouvrir un compte reste une décision d'Adam.
 
 ## Scénarios de capital (demandé par Adam le 2026-11-28 : budget 50 €)
 
 Aucune limite n'est adoptée. Remarque de construction : la taille d'une position est fixée par la perte max par trade divisée par la distance du stop (taille ≈ 1 € / (17 % × 1,5 + frais) ≈ 3,7 € aujourd'hui), pas par le capital. Passer à 50 € avec les mêmes limites ne change presque rien tant que le stop est large ; seul un budget de perte par trade plus élevé augmente la taille. Les scénarios testés (backtest BTC, entraînement + validation, coûts Kraken et Bitvavo) sont dans le tableau « Scénarios de capital » du workflow `research`.
+
+Résultats (run 46120189466, BTC, validation 2022–mi-2024, gain en €) :
+
+| Scénario | trend_sma Kraken | trend_sma Bitvavo | perte max (Bitvavo) | trend_sma_fast Bitvavo | perte max |
+| --- | --- | --- | --- | --- | --- |
+| 20 €, limites actuelles (arrêt 7 €) | +3,35 € | +5,69 € | 1,73 € | +12,95 € | 3,67 € |
+| 50 €, limites actuelles (arrêt 7 €) | +3,35 € | +5,69 € | 1,73 € | +14,36 € | 3,67 € |
+| 50 €, intermédiaire (1,5 €/trade, 3 €/jour, arrêt 12 €, max 15 €) | +5,22 € | +8,48 € | 2,63 € | +21,54 € | 5,51 € |
+| 50 €, proportionnel (2,5 €/trade, 5 €/jour, arrêt 17,5 €, max 25 €) | +8,69 € | +14,13 € | 4,38 € | +32,38 € | 9,18 € |
+
+Confirmé : 50 € avec les mêmes limites ne rapporte rien de plus (même gain en €). Le gain vient du budget de perte par trade. Biais : ces chiffres sont sur des segments déjà vus ; seul un fantôme sur données nouvelles comptera.
 
 ## Mise en garde
 
