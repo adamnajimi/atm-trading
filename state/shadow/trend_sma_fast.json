@@ -1,0 +1,13 @@
+{
+  "cash_eur": 20.0,
+  "initial_eur": 20.0,
+  "positions": {},
+  "fees_paid_eur": 0.0,
+  "realized_pnl_eur": 0.0,
+  "suspended": false,
+  "suspend_reason": "",
+  "day": "2026-11-28",
+  "day_start_equity_eur": 20.0,
+  "processed_order_ids": [],
+  "trades": []
+}
